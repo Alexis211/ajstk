@@ -1,0 +1,7 @@
+{
+	"ContentsFolder": "../kimidori-contents",
+	"WebFolder": "../kimidori-web",
+	"AdminUsers": ["katchup"],
+	"SMTPServer": "smtp.free.fr:25",
+	"HTTPServeAddr": ":1234"
+}

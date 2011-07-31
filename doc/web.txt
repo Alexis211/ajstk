@@ -1,0 +1,43 @@
+Description of the views for the AJSTK web interface.
+2011, Alex AUVOLAT
+
+
+This is just a list and quick description of the views.
+The code for these views is in a Go package called 'webs' (for web server).
+They call for templates whose code lies in a language-specific package, usually of the name
+{something}-web, where something is the name the language-specific comunity has given the
+product.
+
+'home':
+  shows a user-independant homepage, telling whatever.
+'login' and 'logout':
+  permits the user to log in and out. the session managing is handled by the webs package.
+'register':
+  create a new account
+'settings':
+  change password, email, furigana settings, ...
+
+'study_home':
+  shows a quick summary of the SRS reviewing status (top)
+  shows available lessons for studied level (left column), 
+  and the chunks for the studied lesson (right column) with the lesson description
+  (shows statuses, see study.txt)
+'browse':
+  permits browsing through levels (top) giving the description of the currently studied
+  level, lessons for that level (left column), and gives quick information on that lesson
+  (right column) : chunks, description
+  the user must select to study a given lesson so that it will become the content displayed
+  on the 'study_home' view.
+'chunk_summary':
+  shows the description of a chunk, the status it has, actions (change status),
+  lists the SRS items it contains.
+'chunk_read':
+  minimal view with no menus, nothing but the chunk's text so that the user will focus
+  chunks have a slide-organized presentation. uses a little javascript.
+
+'srs_home':
+  displays SRS status for groups globally and for subgoups.
+'srs_review', 'chunk_drill', 'tomorrow_drill':
+  the action of doing a review or a drill. minimal view with no menus. just focuses on
+  the question. uses some javascript.
+

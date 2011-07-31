@@ -1,0 +1,29 @@
+AJSTK project preliminary documentation
+2011, Alex AUVOLAT
+
+
+WHAT IS AJSTK
+=============
+
+AJSTK (A Japanese Study ToolKit) is a program for making the studying of Japanese easy,
+progressive and computer-assisted.
+
+It will have the following features :
+- Internationnal : lessons will be written in several languages
+- Includes an automated flashcard SRS system
+- Open source and decentralized, using git to collaboratively edit the contents
+  anyone can install his own server and customize it's look and contents
+
+It will work following these directives :
+- Web-based frontend (the engine is a web server)
+- Engine programmed in Go (google's http://golang.org/)
+- Custom text-file-based data format for the lessons
+- sqlite databases, one sqlite file per user ; the learning itself is individualized
+
+Components
+----------
+
+- *ajstk* : this name refers only to the server code
+- a language-specific package for the contents (lesson files)
+- a language-specific package for the web templates and static files
+

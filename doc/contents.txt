@@ -1,0 +1,119 @@
+Description of the data format for the ajstk content packages
+2011, Alex AUVOLAT
+
+
+Most of this is handled globally by a Go package called 'contents'.
+
+GLOBAL FUNCTIONNING
+===================
+
+The content files are the files describing the lessons available for the users.
+They lie in a git repository, usually of the name {something}-contents, where something
+is the name the language-specific community gives to their product.
+These files are parsed and loaded in memory once, when the server loads, and then they can
+be re-read when an admin asks to, without expunging all the users. Parsing errors cause
+the server to crash.
+
+The contents is divided in chunks, which include basically some text for that lesson,
+but at parse time are also extracted items that will be available for review using the
+SRS system.
+
+At server load time :
+	parse chunk files -> list of available SRS items + HTML template for that chunk
+When a user asks to view a chunk :
+	chunk's HTML template + user's custom SRS data -> custom render of the chunk
+	The custom render is used for showing using colors (or whatever) the review progress
+	for the SRS items included in this chunk.
+
+
+THE FOLDER HIERARCHY
+====================
+
+The content is organized as follows :
+- first folder level : study level
+- second folder level : lessons for that level
+- files in that folder : chunks for that lesson
+
+Example hierarchy :
+/ajstk-fr-contents/
+	Guide de conversation	Débutant	JLPT4	JLPT3	JLPT2	JLPT1	info.json*
+/ajstk-fr-contents/Débutant/
+	Introduction	Leçon 0 	Leçon 1 	Leçon 2 	info.json*
+/ajstk-fr-contents/Débutant/Introduction/
+	Pourquoi apprendre?**	Systèmes d'écriture**	info.json*
+The info.json* items are files wich describe the contents of the directory they are in.
+info.json syntax details are below.
+The ** items are the chunk files, syntax described below
+
+info.json details
+-----------------
+
+The info.json files are JSON-formatted files that describe the content of the directory
+they are in.
+
+info.json in the root directory : lists the SRS study groups and subgroups
+	(see study.txt) and lists the levels, in the order in which they should appear.
+info.json in a study level's folder : includes a description of that level and a list of
+	the lessons included, in the order in which they should appear.
+info.json in a lesson's folder : includes a description of the lesson, a list of recomended
+	lessons to have studied before, and a list of the chunks for this lesson (in order).
+
+
+CHUNK FILE SYNTAX
+=================
+
+The chunks are divided into slides that contain very little information, and that are
+displayed to the user one at the time.
+
+Text is utf-8 encoding. Line endings can be unix (\n) or windows (\r\n), but unix is preferred.
+The first line is the title of the chunk.
+From then, the beginning text in the chunk is it's description.
+Then, each slides begins with a line like the following :
+\slide:<slide title>
+
+An empty lines causes a paragraph break. Consecutives lines appear as one paragraph only.
+Lines ending with a tilde (~) will have a line break added after them.
+Lines that start with two spaces will be put into <blockquotes /> so that they have
+a nice presentation.
+Lines starting with # will make an <ol />, - will make <ul />.
+List items can span on several lines, next line starts with two spaces.
+Lines starting with one or more equal signs (=) will become a <hX /> tag, where X is the
+number of equal signs plus one.
+
+Text surrounded by an asterisk (*) on each side becomes <strong />.
+Text surrounded by slashes (/) becomes <em />.
+
+Tables can be created quickly with the following syntax :
+:#HEADER#:#HEADER#:#HEADER#:
+:text    :text    :text    :
+:text    :text    :text    :
+(cells don't have to be all the same length. the semicolons are the marks for tables).
+
+
+SRS items go by the following syntax :
+\srs:<group>:<subgroup>:<meaning>:<kanji>:<reading>:<comment>
+or
+\srs:<group>:<subgroup>:<meaning>:<kanji>:<reading>
+  <comment>
+Several lines like this one will be formatted in a table.
+An alternative syntax is available for long elements (sentences) :
+\srs:<group>:<subgroup>
+  <meaning>
+  <kanji>
+  <reading>
+  <comment>
+This syntax will also provide an alternate presentation, better adapted to long items.
+
+Furigana
+--------
+
+The insersion of SRS items will automatically generate a furigana display where they are inserted.
+
+To add furigana elsewhere, the following syntax is used :
+{text:furigana}
+the same syntax with full-width {, : and } is also supported.
+
+Automatic furigana from the SRS items found in current chunk *only* is available with :
+{text}
+With this syntax, the SRS status of the item can be used for determining whether or not
+to display the furigana. (user setting available for this).

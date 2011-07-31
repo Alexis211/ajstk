@@ -1,0 +1,119 @@
+Description of the study mechanisms for AJSTK
+2011, Alex AUVOLAT
+
+
+All of this is handled mostly by a Go package called 'study'.
+
+USER ATTRIBUTES
+===============
+
+For each user's database file, a table called 'attributes' keeps track of the settings the
+user asked for. This includes :
+- password, email
+- currently visiting level and lesson
+- enabled and disabled SRS subgroups (see below)
+
+
+TRACK STUDY PROGRESS
+====================
+
+A first sql table called 'chunk_study', for each user, keeps track of the status of a
+user's studying a lesson.
+Fields are the following :
+- level, lesson, chunk name (indexes the table)
+- status = one of :
+  - reading : the user is studying the lesson
+  - repeat : the user has added the items to the SRS system
+  - done : the user masters the chunk's contents and is quite sure he won't forget it
+
+From this data, the lessons can have several status for the user :
+- Not available for study
+- Available for study (all required lessons have been studied and are considered 'done')
+- Studying : all chunks have an entry in 'chunk_study', and some are still at 'reading'
+- Done : all chunks have an entry in 'chunk_study', and all have the 'repeat' or 'done'
+  status.
+
+The lesson and chunk statuses are kept in a cache in memory in the server.
+
+The user has to ask for available lessons to go to studying status.
+The user has to ask for 'reading' chunks to go to 'repeat' status, and for 'repeat' chunks
+to go to 'done' status.
+The user is also notified when all the SRS items are known, with a repeat-done status, so
+that he can easily mark them as 'done' if he wishes to.
+From the 'done' status, the user can go back to 'repeat' if he wishes to start studying
+again. From 'repeat', he can go to 'done' whenever he wants, even if the items aren't all
+marked as known in the SRS.
+
+
+TRACK MEMORIZATION PROGRESS
+===========================
+
+Classification
+--------------
+
+This is done using a SRS system. The SRS system classifies elements in groups and
+subgroups : groups are one of 'kana', 'kanji', 'vocabulary', 'sentences', and subgroups
+correspond to study levels.
+Review is never done for all the content, always for a given group or a given subgroup of
+a given group. Each subgroups of a group can be activated or deactivated for the
+group-global review process.
+
+Learning
+--------
+
+Before adding the chunk's SRS items to the SRS study process, the user can use a 'drill'
+mode that will help him memorize these items for the first time. The questions are the same
+than for the review mode (see below), and all the cards stay in the looping deck until the
+user has gotten all of them right. The drill mode is available for the items in a chunk,
+but since there may be only a few, it is also available for all the items in the whole
+lesson.
+
+Reviewing
+---------
+
+The cards are keepen in boxes, and have a next review date.
+When a card is added, it goes to box 0 and the next review date is set to tomorrow.
+When reviewing a card, if the two questions are answered correctly, the card goes to
+the next box, and the next review date is set to today + interval for that box (see table).
+If one or both questions fail, the card goes to box 0, and the next review date is set to
+tomorrow.
+The box number for an item determines whether the item is well known or not.
+
+Box ID		0		1		2		3		4		5+
+Interval	NA		1 day	2 days	4 days	7 days	11,18,30,50,+inf days
+Colour		black	red		orange	yellow	yellow	green (known)
+
+The user can also have a quick access to a list of the items he failed or started learning
+today and will be reviewing tomorrow. From there he can do a drill on these cards.
+
+Items have the 'known' status once they are in box 5 or upper.
+
+Questions
+---------
+
+SRS items (cards) have four basic information on them :
+- meaning (english, french, ...)
+- japanese with kanji
+- japanese reading (only when necessary)
+- comment from the lesson (optionnal)
+When a user reviews a card, two questions are asked :
+- the user is given the meaning and must tell the kanji and reading fields
+- the user is given the kanji and must tell the meaning and reading fields
+The two questions are asked at different moments of the review process, and the user must
+have the two right for the review to be considered successfull. When the question is asked,
+the system also tells the group and subgroup the card belongs to. The user has two
+textareas to prepare his answers, but these are not taken into account automatically : the
+evaluation is done solely by the user pressing "yes" or "no" once the answer is shown.
+
+SQL table
+---------
+
+The SQL table 'srs_study' contains all the elements that the user has added to his study
+process. The elements are added when a chunk gets the 'repeat' status, and removed when the
+chunk gets the 'done' status.
+Fields are the following :
+- level, lesson, chunk from which the item comes from (indexes the table)
+- group and subgoup (indexes the table)
+- meaning, kanji, reading, comment
+- box ID, next review date (indexes the table)
+- a note to self for the user on that card
