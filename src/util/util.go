@@ -6,6 +6,9 @@ import (
 	"io/ioutil"
 	"json"
 	"bufio"
+	"crypto/sha1"
+	"io"
+	"fmt"
 )
 
 func LoadJSONFile(f string, w interface{}) {
@@ -36,4 +39,26 @@ func TrimCRLF(s string) string {
 		s = s[0:len(s)-1]
 	}
 	return s
+}
+
+func Exists(filename string) bool {
+	_, err := os.Stat(filename)
+	if err == nil {
+		return true
+	}
+	return false
+}
+
+func StrSHA1(s string) string {
+	b := sha1.New()
+	io.WriteString(b, s)
+	return fmt.Sprintf("%x", b.Sum())
+}
+
+func UUIDGen() string {
+	f, _ := os.Open("/dev/urandom")
+	b := make([]byte, 16)
+	f.Read(b)
+	f.Close()
+	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }

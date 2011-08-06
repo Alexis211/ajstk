@@ -3,15 +3,19 @@ package contents
 import (
 	"log"
 	"util"
+	"main/config"
 )
 
 // ***************************** STRUCTURES *********************
 
+type DicInfo struct {
+	Filename, Name, Format string
+}
 type DataInfo struct {
 	SRSGroups map[string][]string
 	Levels []string
 	DefaultLevel string
-	Dictionaries map[string]string
+	Dictionaries []DicInfo
 }
 
 type Level struct {
@@ -55,17 +59,14 @@ type SRSItem struct {
 
 // *************************** WHERE THE DATA LIES **************
 
-var contentsFolder string
-
 var Info DataInfo
 var Levels []*Level
 var LevelsMap map[string]*Level
 
 // **************************** LOAD FUNCTIONS *******************
 
-func LoadDataFolder(f string) {
+func LoadDataFolder() {
 	log.Printf("Loading and parsing data files...")
-	contentsFolder = f
 
 	Info, Levels, LevelsMap = LoadData()
 }
@@ -75,7 +76,7 @@ func LoadData() (DataInfo, []*Level, map[string]*Level) {
 	var levels []*Level
 	var levelsMap = make(map[string]*Level)
 
-	util.LoadJSONFile(contentsFolder + "/info.json", &info)
+	util.LoadJSONFile(config.Conf.ContentsFolder + "/info.json", &info)
 
 	levels = make([]*Level, len(info.Levels))
 	for id, name := range info.Levels {
@@ -89,7 +90,7 @@ func loadLevel(level string) *Level {
 	log.Printf("Loading level : %v...", level)
 	ret := &Level{Id: level, LessonsMap: make(map[string]*Lesson)}
 
-	util.LoadJSONFile(contentsFolder + "/" + level + "/info.json", &ret.Info)
+	util.LoadJSONFile(config.Conf.ContentsFolder + "/" + level + "/info.json", &ret.Info)
 
 	ret.Lessons = make([]*Lesson, len(ret.Info.Lessons))
 	for id, name := range ret.Info.Lessons {
@@ -103,7 +104,7 @@ func loadLesson(level, lesson string, lp *Level) *Lesson {
 	log.Printf("Loading lesson : %v / %v...", level, lesson)
 	ret := &Lesson{Level: lp, Id: lesson, ChunksMap: make(map[string]*Chunk)}
 
-	util.LoadJSONFile(contentsFolder + "/" + level + "/" + lesson + "/info.json", &ret.Info)
+	util.LoadJSONFile(config.Conf.ContentsFolder + "/" + level + "/" + lesson + "/info.json", &ret.Info)
 
 	ret.Chunks = make([]*Chunk, len(ret.Info.Chunks))
 	for id, name := range ret.Info.Chunks {
@@ -119,7 +120,7 @@ func loadLesson(level, lesson string, lp *Level) *Lesson {
 func loadChunk(level, lesson, chunk string) *Chunk {
 	log.Printf("Loading chunk : %v / %v / %v...", level, lesson, chunk)
 
-	lines := util.ReadLines(contentsFolder + "/" + level + "/" + lesson + "/" + chunk)
+	lines := util.ReadLines(config.Conf.ContentsFolder + "/" + level + "/" + lesson + "/" + chunk)
 
 	return parseChunk(lines)
 }

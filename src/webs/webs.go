@@ -7,6 +7,7 @@ import (
 )
 
 import (
+	"main/config"
 	"util"
 	"contents"
 )
@@ -18,40 +19,47 @@ import (
 
 // ************************* TEMPLATES && OTHER DATA *********************
 
-var webFilesDir string
-
 var tpl = map[string]*template.Template {
 	"error": nil,
 
 	"home": nil,
-/*	"login": nil,
+	"login": nil,
 	"register": nil,
-	"settings": nil,
+/*	"settings": nil,
 
 	"study_home": nil, */
 	"browse": nil,
 	"chunk_summary": nil,
 	"chunk_read": nil,
+
+	"dic_results": nil,
 /*
 	"srs_home": nil,
 	"srs_review_drill": nil,*/
 }
 
+var messages = make(map[string]string)
+
 // ************************** IMPORTANT FUNCTIONS ****************
 
-func Serve(addr string) {
-	log.Printf("Starting web server at %v...", addr)
+func Serve() {
+	log.Printf("Starting web server at %v...", config.Conf.HTTPServeAddr)
 
 	http.Handle("/", &sessionView{&tplView{"/", "home", homeView}} )
 
-	http.Handle("/browse/", &sessionView{&tplView{"", "browse", browseView}} )
-	http.Handle("/chunk_summary/",
-		&sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )
-	http.Handle("/chunk_read/",
-		&sessionView{&tplView{"", "chunk_read", chunkSummaryView}} )
+	http.Handle("/login", &sessionView{&tplView{"/login", "login", loginView}} )
+	http.Handle("/register", &sessionView{&tplView{"/register", "register", loginView}} )
+	http.Handle("/logout", &sessionView{&tplView{"/logout", "error", logoutView}} )
 
-	http.Handle("/image/", http.FileServer(webFilesDir, ""))
-	http.Handle("/style/", http.FileServer(webFilesDir, ""))
+	http.Handle("/browse/", &sessionView{&tplView{"", "browse", browseView}} )
+	http.Handle("/chunk_summary/", &sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )
+	http.Handle("/chunk_read/", &sessionView{&tplView{"", "chunk_read", chunkSummaryView}} )
+
+	http.Handle("/dic", &sessionView{&tplView{"/dic", "dic_results", dicSearchView}})
+
+	http.Handle("/image/", http.FileServer(config.Conf.WebFolder, ""))
+	http.Handle("/style/", http.FileServer(config.Conf.WebFolder, ""))
+	http.Handle("/js/", http.FileServer(config.Conf.WebFolder, ""))
 
 	http.Handle("/reload_tpl/", &sessionView{&redirectPrevView{"/reload_tpl",
 		func(req *http.Request, s *session) {
@@ -62,26 +70,26 @@ func Serve(addr string) {
 			contents.Info, contents.Levels, contents.LevelsMap = contents.LoadData()
 		}}})
 
-	err := http.ListenAndServe(addr, nil)
+	err := http.ListenAndServe(config.Conf.HTTPServeAddr, nil)
 	if err != nil { log.Fatalf("Error while starting HTTP server : %v", err) }
 }
 
-func LoadWebFilesDir(d string) {
+func LoadWebFilesDir() {
 	defer func() {
 		if err := recover(); err != nil {
 			log.Fatalf("Error while loading web files : %v", err)
 		}
 	}()
 
-	webFilesDir = d
 	LoadWebFiles()
 }
 
 func LoadWebFiles() {
 	log.Printf("Loading web server templates...")
+	util.LoadJSONFile(config.Conf.WebFolder + "/messages.json", &messages)
 	for name, _ := range tpl {
 		log.Printf("Loading template : %v...", name)
-		tpl[name] = loadExtendedTemplate(webFilesDir + "/tpl", name)
+		tpl[name] = loadExtendedTemplate(config.Conf.WebFolder + "/tpl", name)
 	}
 }
 

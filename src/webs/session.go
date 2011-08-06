@@ -4,16 +4,20 @@ import (
 	"http"
 )
 
-// various levels of authentication
-const (
-	SA_GUEST = iota
-	SA_USER
-	SA_ADMIN
+import (
+	"study"
+	"util"
 )
 
+
+/* LOGIN STATUSES :
+	- Not logged in : session.User = nil
+	- Standard user : session.User = something, Admin = false
+	- Admin user    : session.User = something, Admin = true
+*/
 type session struct {
-	auth int	// one of SA_* defined above
-	username string
+	Admin bool
+	User *study.User
 }
 
 type sessionViewHandler interface {
@@ -25,7 +29,24 @@ type sessionView struct {
 	h sessionViewHandler
 }
 
+var sessions = make(map[string]*session)
+
 func (v *sessionView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	// TODO : get session
-	v.h.handle(w, req, nil)
+	sessid := "" 
+	for _, cookie := range req.Cookie {
+		if cookie.Name == "sessid" {
+			sessid = cookie.Value
+			break
+		}
+	}
+	if sessid == "" {
+		sessid = util.UUIDGen()
+		w.Header().Add("Set-Cookie", "sessid=" + sessid)
+	}
+	sess, ok := sessions[sessid]
+	if !ok {
+		sess = new(session)
+		sessions[sessid] = sess
+	}
+	v.h.handle(w, req, sess)
 }

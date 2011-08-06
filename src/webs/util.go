@@ -21,6 +21,7 @@ type getDataError struct {
 	Code int
 	Error os.Error
 }
+type redirectResponse string
 
 func (v *tplView) handle(w http.ResponseWriter, req *http.Request, s *session) {
 	if v.checkUniqueURL != "" && req.URL.Path != v.checkUniqueURL {
@@ -42,6 +43,9 @@ func (v *tplView) handle(w http.ResponseWriter, req *http.Request, s *session) {
 		w.WriteHeader(ee.Code)
 		e := tpl["error"].Execute(w, giveTplData{"Sess": s, "Error": ee, "Request": req } )
 		if e != nil { w.Write([]byte(e.String())) }
+	} else if rurl, ok := d.(redirectResponse); ok {
+		w.Header().Add("Location", string(rurl))
+		w.WriteHeader(http.StatusFound)
 	} else {
 		e := tpl[v.tpl].Execute(w, giveTplData{"Sess": s, "Data": d, "Request": req } )
 		if e != nil { w.Write([]byte(e.String())) }
@@ -74,5 +78,5 @@ func (v *redirectPrevView) handle(w http.ResponseWriter, req *http.Request, s *s
 	url2 := req.Header.Get("Http-Referer")
 	if url2 != "" { url = url2 }
 	w.Header().Add("Location", url)
-	w.WriteHeader(http.StatusMovedPermanently)
+	w.WriteHeader(http.StatusFound)
 }

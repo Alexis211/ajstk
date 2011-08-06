@@ -1,7 +1,13 @@
 {
 	"ContentsFolder": "../kimidori-contents",
+	"UserDataFolder": "../data",
 	"WebFolder": "../kimidori-web",
-	"AdminUsers": ["katchup"],
+	"AdminUsers": {
+		"admin": {
+			"Email": "johnluke@nowhere.com",
+			"Password": "test",
+		}
+	},
 	"SMTPServer": "smtp.free.fr:25",
 	"HTTPServeAddr": ":1234"
 }

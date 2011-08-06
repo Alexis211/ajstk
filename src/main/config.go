@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"log"
@@ -6,15 +6,17 @@ import (
 )
 
 type config struct {
-	ContentsFolder, WebFolder string
-	AdminUsers []string
+	ContentsFolder, UserDataFolder, WebFolder string
+	AdminUsers map[string]struct{
+		Email, Password string
+	}
 	SMTPServer string
 	HTTPServeAddr string
 }
 
 var Conf config
 
-func loadConfig() {
+func LoadConfig(file string) {
 	log.Printf("Loading config file...")
-	util.LoadJSONFile(ConfigFile, &Conf)
+	util.LoadJSONFile(file, &Conf)
 }

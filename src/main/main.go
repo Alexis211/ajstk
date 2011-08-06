@@ -1,19 +1,22 @@
 package main
 
 import (
+	"main/config"
 	"contents"
-	//"study"
+	"dic"
+	"study"
 	"webs"
 )
 
 const ConfigFile = "./config.json"
 
 func main() {
-	loadConfig()
+	config.LoadConfig(ConfigFile)
 
-	contents.LoadDataFolder(Conf.ContentsFolder)
-	//study.CheckAdminUsers()
+	contents.LoadDataFolder()
+	go dic.LoadDictionaries()	//do it in background, it's ok
+	study.Startup()
 
-	webs.LoadWebFilesDir(Conf.WebFolder)
-	webs.Serve(Conf.HTTPServeAddr)
+	webs.LoadWebFilesDir()
+	webs.Serve()
 }
