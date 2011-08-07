@@ -48,8 +48,8 @@ func Serve() {
 	http.Handle("/", &sessionView{&tplView{"/", "home", homeView}} )
 
 	http.Handle("/login", &sessionView{&tplView{"/login", "login", loginView}} )
-	http.Handle("/register", &sessionView{&tplView{"/register", "register", loginView}} )
-	http.Handle("/logout", &sessionView{&tplView{"/logout", "error", logoutView}} )
+	http.Handle("/register", &sessionView{&tplView{"/register", "register", registerView}} )
+	http.Handle("/logout", &sessionView{&redirectView{"/logout", logoutView}} )
 
 	http.Handle("/browse/", &sessionView{&tplView{"", "browse", browseView}} )
 	http.Handle("/chunk_summary/", &sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )

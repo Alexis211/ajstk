@@ -4,8 +4,10 @@
 	"WebFolder": "../kimidori-web",
 	"AdminUsers": {
 		"admin": {
+			"FullName": "Dummy admin user",
 			"Email": "johnluke@nowhere.com",
 			"Password": "test",
+			"ResetDBAtStartup": true
 		}
 	},
 	"SMTPServer": "smtp.free.fr:25",

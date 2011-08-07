@@ -11,6 +11,7 @@ import (
 	"dic"
 	"study"
 	"main/config"
+	"util"
 )
 
 func homeView(req *http.Request, s *session) interface{} {
@@ -65,16 +66,42 @@ func loginView(req *http.Request, s *session) interface{} {
 }
 
 func registerView(req *http.Request, s *session) interface{} {
-	return redirectResponse("/")
+	rurl := req.FormValue("back")
+	if rurl == "" { rurl = "/" }
+
+	ret := giveTplData{
+		"ReturnTo": rurl,
+	}
+
+	if req.FormValue("username") != "" {
+		if req.FormValue("password") == "" {
+			ret["Error"] = messages["MustEnterPassword"]
+		} else if req.FormValue("password2") != req.FormValue("password") {
+			ret["Error"] = messages["MustEnterSamePasswordTwice"]
+		} else if req.FormValue("email") == "" {
+			ret["Error"] = messages["MustEnterEmail"]
+		} else if study.GetUser(req.FormValue("username")) != nil {
+			ret["Error"] = messages["UsernameTaken"]
+		} else {
+			u := study.CreateUser(req.FormValue("username"))
+			u.SetAttr("admin", study.DBFALSE)
+			u.SetAttr("password", util.StrSHA1(req.FormValue("password")))
+			u.SetAttr("email", req.FormValue("email"))
+			u.SetAttr("fullname", req.FormValue("fullname"))
+			return redirectResponse("/login?back=" + rurl)
+		}
+	}
+
+	return ret
 }
 
-func logoutView(req *http.Request, s *session) interface{} {
+func logoutView(req *http.Request, s *session) string {
 	s.User = nil
 	s.Admin = false
 
 	rurl := req.FormValue("back")
 	if rurl == "" { rurl = "/" }
-	return redirectResponse(rurl)
+	return rurl
 }
 
 // ==================================================
@@ -108,11 +135,17 @@ func browseView(req *http.Request, s *session) interface {} {
 		}
 	}
 
-	return giveTplData{
+	ret := giveTplData{
+		"Levels": contents.Levels,
 		"Level": lvl,
 		"Lesson": less,
-		"Levels": contents.Levels,
+		"LessonsWS": s.User.GetLessonStatuses(lvl),
+		"ChunksWS": s.User.GetChunkStatuses(less),
 	}
+	if s.User != nil {
+		ret["LessonStudy"] = study.LessonWithStatus{less, s.User.GetLessonStudy(less)}
+	}
+	return ret
 }
 
 func chunkSummaryView(req *http.Request, s *session) interface{} {
@@ -129,9 +162,13 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 	chunk, ok := less.ChunksMap[path[4]]
 	if !ok { return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchChunk"])} }
 
-	return giveTplData{
+	ret := giveTplData{
 		"Level": lvl,
 		"Lesson": less,
 		"Chunk": chunk,
 	}
+	if s.User != nil {
+		ret["ChunkStudy"] = study.ChunkWithStatus{chunk, s.User.GetChunkStudy(chunk)}
+	}
+	return ret
 }

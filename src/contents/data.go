@@ -39,6 +39,9 @@ type Lesson struct {
 	Chunks []*Chunk
 	ChunksMap map[string]*Chunk
 }
+func (l *Lesson) FullId() string {
+	return l.Level.Id + "/" + l.Id
+}
 
 type Chunk struct {
 	Id string
@@ -48,6 +51,9 @@ type Chunk struct {
 	Contents string
 	Summary []string
 	SRSItems []SRSItem
+}
+func (c *Chunk) FullId() string {
+	return c.Level.Id + "/" + c.Lesson.Id + "/" + c.Id
 }
 
 type SRSItem struct {

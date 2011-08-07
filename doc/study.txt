@@ -117,3 +117,14 @@ Fields are the following :
 - meaning, kanji, reading, comment
 - box ID, next review date (indexes the table)
 - a note to self for the user on that card
+
+THE STUDY.USER INTERFACE
+========================
+
+Here are the functions available to the study.User object :
+- GetLessonStatuses(level)
+- GetChunkStatuses(level, lesson)
+- GetSRSItemStatuses(level, lesson, chunk)
+- StartStudyingLesson(level, lesson)
+- SetChunkStatus(level, lesson, chunk, status[reading,repeat,done])
+- ... more (srs)

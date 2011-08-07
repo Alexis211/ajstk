@@ -8,7 +8,8 @@ import (
 type config struct {
 	ContentsFolder, UserDataFolder, WebFolder string
 	AdminUsers map[string]struct{
-		Email, Password string
+		Email, Password, FullName string
+		ResetDBAtStartup bool
 	}
 	SMTPServer string
 	HTTPServeAddr string

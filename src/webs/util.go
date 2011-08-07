@@ -80,3 +80,27 @@ func (v *redirectPrevView) handle(w http.ResponseWriter, req *http.Request, s *s
 	w.Header().Add("Location", url)
 	w.WriteHeader(http.StatusFound)
 }
+
+type redirectView struct {
+	checkUniqueURL string
+	getRedirectUrl func(req *http.Request, s *session) string
+}
+
+func (v *redirectView) handle(w http.ResponseWriter, req *http.Request, s *session) {
+	if v.checkUniqueURL != "" && req.URL.RawPath[0:len(v.checkUniqueURL)] != v.checkUniqueURL {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "<pre>404 page not found</pre>")
+		return
+	}
+
+	defer func() {
+		if e := recover(); e != nil {
+			fmt.Fprintf(w, "%v", e)
+			log.Printf("Error in handling %v : %v", req.RawURL, e)
+		}
+	}()
+
+	rurl := v.getRedirectUrl(req, s)
+	w.Header().Add("Location", rurl)
+	w.WriteHeader(http.StatusFound)
+}
