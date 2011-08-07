@@ -19,7 +19,6 @@ const (		//chunk possible statuses
 	CS_NOT_AVAILABLE = iota
 	CS_READING
 	CS_REPEAT
-	CS_REPEAT_DONE
 	CS_DONE
 )
 
@@ -135,7 +134,7 @@ func (u *User) CheckNewAvailableLessons() {
 			if u.GetLessonStudy(lesson) <= LS_AVAILABLE {
 				available := true
 				for _, dep := range lesson.Info.Deps {
-					if v, ok := u.lessonStudy[level.Id + "/" + dep]; ok && v < LS_STUDYING {
+					if v, ok := u.lessonStudy[level.Id + "/" + dep]; ok && v < LS_DONE {
 						available = false
 						break
 					}
@@ -196,5 +195,15 @@ func (u *User) GetChunkStatuses(lesson *contents.Lesson) []ChunkWithStatus {
 		}
 	}
 	return ret
+}
+
+func (u *User) StartStudyingLesson(lesson *contents.Lesson) {
+	if u.GetLessonStudy(lesson) < LS_STUDYING {
+		u.SetLessonStudy(lesson, LS_STUDYING)
+		for _, chunk := range lesson.Chunks {
+			u.SetChunkStudy(chunk, CS_READING)
+		}
+		u.CheckNewAvailableLessons()
+	}
 }
 

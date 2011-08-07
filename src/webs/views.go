@@ -106,6 +106,55 @@ func logoutView(req *http.Request, s *session) string {
 
 // ==================================================
 
+func goStudyView(req *http.Request, s *session) string {
+	if s.User == nil {
+		return "/login?back=" + req.URL.Path
+	}
+
+	path := strings.Split(req.URL.Path, "/", -1)
+	if len(path) < 4 {
+		panic(getDataError{http.StatusNotFound, os.NewError("Malformed request.")})
+	}
+
+	lvl, ok := contents.LevelsMap[path[2]]
+	if !ok {
+		panic(getDataError{http.StatusNotFound, os.NewError("No such level.")})
+	}
+
+	less, ok := lvl.LessonsMap[path[3]]
+	if !ok {
+		panic(getDataError{http.StatusNotFound, os.NewError("No such lesson.")})
+	}
+
+	s.User.StartStudyingLesson(less)
+	s.User.SetAttr("current_study_lvl", lvl.Id)
+	s.User.SetAttr("current_study_less", less.Id)
+
+	return "/study_home"
+}
+
+func studyHomeView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=study_home")
+	}
+
+	//TODO here : get SRS status
+	ret := giveTplData{
+	}
+
+	lvl, ok := contents.LevelsMap[s.User.GetAttr("current_study_lvl")]
+	if !ok { return ret }
+	less, ok := lvl.LessonsMap[s.User.GetAttr("current_study_less")]
+	if !ok { return ret }
+
+	ret["Level"] = lvl
+	ret["Lesson"] = less
+	ret["LessonsWS"] = s.User.GetLessonStatuses(lvl)
+	ret["ChunksWS"] = s.User.GetChunkStatuses(less)
+	ret["LessonStudy"] = study.LessonWithStatus{less, s.User.GetLessonStudy(less)}
+	return ret
+}
+
 func browseView(req *http.Request, s *session) interface {} {
 	path := strings.Split(req.URL.Path, "/", -1)
 

@@ -25,9 +25,9 @@ var tpl = map[string]*template.Template {
 	"home": nil,
 	"login": nil,
 	"register": nil,
-/*	"settings": nil,
+/*	"settings": nil, */
 
-	"study_home": nil, */
+	"study_home": nil,
 	"browse": nil,
 	"chunk_summary": nil,
 	"chunk_read": nil,
@@ -51,6 +51,8 @@ func Serve() {
 	http.Handle("/register", &sessionView{&tplView{"/register", "register", registerView}} )
 	http.Handle("/logout", &sessionView{&redirectView{"/logout", logoutView}} )
 
+	http.Handle("/go_study/", &sessionView{&redirectView{"", goStudyView}} )
+	http.Handle("/study_home/", &sessionView{&tplView{"/study_home/", "study_home", studyHomeView}})
 	http.Handle("/browse/", &sessionView{&tplView{"", "browse", browseView}} )
 	http.Handle("/chunk_summary/", &sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )
 	http.Handle("/chunk_read/", &sessionView{&tplView{"", "chunk_read", chunkSummaryView}} )
@@ -61,13 +63,15 @@ func Serve() {
 	http.Handle("/style/", http.FileServer(config.Conf.WebFolder, ""))
 	http.Handle("/js/", http.FileServer(config.Conf.WebFolder, ""))
 
-	http.Handle("/reload_tpl/", &sessionView{&redirectPrevView{"/reload_tpl",
-		func(req *http.Request, s *session) {
+	http.Handle("/reload_tpl/", &sessionView{&redirectView{"/reload_tpl",
+		func(req *http.Request, s *session) string {
 			LoadWebFiles()
+			return req.FormValue("back")
 		}}})
-	http.Handle("/reload_data/", &sessionView{&redirectPrevView{"/reload_data",
-		func(req *http.Request, s *session) {
+	http.Handle("/reload_data/", &sessionView{&redirectView{"/reload_data",
+		func(req *http.Request, s *session) string {
 			contents.Info, contents.Levels, contents.LevelsMap = contents.LoadData()
+			return req.FormValue("back")
 		}}})
 
 	err := http.ListenAndServe(config.Conf.HTTPServeAddr, nil)

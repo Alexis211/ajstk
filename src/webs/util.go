@@ -52,35 +52,6 @@ func (v *tplView) handle(w http.ResponseWriter, req *http.Request, s *session) {
 	}
 }
 
-
-type redirectPrevView struct {
-	checkUniqueURL string
-	fct func(req *http.Request, s *session)
-}
-
-func (v *redirectPrevView) handle(w http.ResponseWriter, req *http.Request, s *session) {
-	if v.checkUniqueURL != "" && req.URL.RawPath[0:len(v.checkUniqueURL)] != v.checkUniqueURL {
-		w.WriteHeader(http.StatusNotFound)
-		fmt.Fprintf(w, "<pre>404 page not found</pre>")
-		return
-	}
-
-	defer func() {
-		if e := recover(); e != nil {
-			fmt.Fprintf(w, "%v", e)
-			log.Printf("Error in handling %v : %v", req.RawURL, e)
-		}
-	}()
-
-	v.fct(req, s)
-	url := req.URL.RawPath[len(v.checkUniqueURL):]
-	if url == "" { url = "/" }
-	url2 := req.Header.Get("Http-Referer")
-	if url2 != "" { url = url2 }
-	w.Header().Add("Location", url)
-	w.WriteHeader(http.StatusFound)
-}
-
 type redirectView struct {
 	checkUniqueURL string
 	getRedirectUrl func(req *http.Request, s *session) string
@@ -97,10 +68,22 @@ func (v *redirectView) handle(w http.ResponseWriter, req *http.Request, s *sessi
 		if e := recover(); e != nil {
 			fmt.Fprintf(w, "%v", e)
 			log.Printf("Error in handling %v : %v", req.RawURL, e)
+			gde, ok := e.(getDataError)
+			if !ok {
+				if ose, ok := e.(os.Error); ok {
+					gde = getDataError{http.StatusInternalServerError, ose}
+				} else {
+					gde = getDataError{http.StatusInternalServerError, os.NewError(fmt.Sprintf("%v", e))}
+				}
+			}
+			w.WriteHeader(gde.Code)
+			e2 := tpl["error"].Execute(w, giveTplData{"Sess": s, "Error": gde, "Request": req } )
+			if e2 != nil { w.Write([]byte(e2.String())) }
 		}
 	}()
 
 	rurl := v.getRedirectUrl(req, s)
+	if rurl == "" { rurl = "/" }
 	w.Header().Add("Location", rurl)
 	w.WriteHeader(http.StatusFound)
 }

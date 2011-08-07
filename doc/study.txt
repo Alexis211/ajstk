@@ -38,7 +38,7 @@ The lesson and chunk statuses are kept in a cache in memory in the server.
 The user has to ask for available lessons to go to studying status.
 The user has to ask for 'reading' chunks to go to 'repeat' status, and for 'repeat' chunks
 to go to 'done' status.
-The user is also notified when all the SRS items are known, with a repeat-done status, so
+The user is also notified when all the SRS items are known on the chunk_summary page, so
 that he can easily mark them as 'done' if he wishes to.
 From the 'done' status, the user can go back to 'repeat' if he wishes to start studying
 again. From 'repeat', he can go to 'done' whenever he wants, even if the items aren't all

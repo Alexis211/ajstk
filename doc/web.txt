@@ -37,7 +37,7 @@ product.
 
 'srs_home':
   displays SRS status for groups globally and for subgoups.
-'srs_review', 'chunk_drill', 'tomorrow_drill':
+'srs_review', 'lesson_drill', 'chunk_drill', 'tomorrow_drill':
   the action of doing a review or a drill. minimal view with no menus. just focuses on
   the question. uses some javascript.
 
