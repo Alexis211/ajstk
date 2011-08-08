@@ -223,7 +223,7 @@ func (u *User) SetChunkStatus(chunk *contents.Chunk, status int64) {
 	// update lesson status
 	lesson_done := true
 	for _, ch := range chunk.Lesson.Chunks {
-		if u.GetChunkStudy(ch) != CS_DONE {
+		if u.GetChunkStudy(ch) < CS_REPEAT {
 			lesson_done = false
 			break
 		}

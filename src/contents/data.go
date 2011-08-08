@@ -55,6 +55,9 @@ type Chunk struct {
 func (c *Chunk) FullId() string {
 	return c.Level.Id + "/" + c.Lesson.Id + "/" + c.Id
 }
+func (c *Chunk) HasSRS() bool {
+	return len(c.SRSItems) > 0
+}
 
 type SRSItem struct {
 	Group, Subgroup string
