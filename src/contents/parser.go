@@ -11,6 +11,7 @@ import (
 	"strings"
 	"fmt"
 	"log"
+	"template"
 )
 
 func parseChunk(lines []string) *Chunk {
@@ -20,7 +21,7 @@ func parseChunk(lines []string) *Chunk {
 	ret.DescHTML, lines = parseText(lines, false, nil)
 	ret.SRSItems = getSRSItems(lines)
 
-	ret.Contents = ""
+	cont := ""
 	for len(lines) != 0 && (len(lines) != 1 || lines[0] != "") {
 		if lines[0][0:7] != "\\slide:" {
 			log.Panicf("Error : expected '\\slide:' directive in chunk file.")
@@ -30,7 +31,7 @@ func parseChunk(lines []string) *Chunk {
 		slideText, nl := parseText(lines, true, ret)
 		lines = nl
 
-		ret.Contents += fmt.Sprintf(`
+		cont += fmt.Sprintf(`
 <div class="slide">
 	<h1>%v</h1>
 	%v
@@ -38,12 +39,16 @@ func parseChunk(lines []string) *Chunk {
 `, slideTitle, slideText)
 		ret.Summary = append(ret.Summary, slideTitle)
 	}
+	fmt.Printf(cont)
+	ret.Contents = template.MustParse(cont, nil)
 
 	return ret
 }
 
-func getSRSItems(lines []string) []SRSItem {
-	ret := make([]SRSItem, 0)
+var srsItemNumber = 1
+
+func getSRSItems(lines []string) []*SRSItem {
+	ret := make([]*SRSItem, 0)
 
 	var busy []string = nil
 	var long = false
@@ -60,9 +65,10 @@ func getSRSItems(lines []string) []SRSItem {
 			if len(busy) < 3 { long = true }
 		}
 		if busy != nil && len(busy) == 6 {
-			ret = append(ret, SRSItem {
-				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, makeHtmlWithFuri(busy[3], busy[4]),
+			ret = append(ret, &SRSItem {
+				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, makeHtmlWithFuri(busy[3], busy[4], false, nil), srsItemNumber,
 			})
+			srsItemNumber++
 			busy = nil
 			long = false
 		}
@@ -70,7 +76,7 @@ func getSRSItems(lines []string) []SRSItem {
 	return ret
 }
 
-func makeHtmlWithFuri(japanese, reading string) string {
+func makeHtmlWithFuri(japanese, reading string, templated bool, srsItem *SRSItem) string {
 	jrunes := make([]int, 0, len(japanese))
 	rrunes := make([]int, 0, len(reading))
 	for _, r := range japanese {
@@ -100,11 +106,23 @@ func makeHtmlWithFuri(japanese, reading string) string {
 				}
 			}
 
-			ret += "<span class=\"furi\"><div>"
+			if templated {
+				if srsItem == nil {
+					ret += `<span class="furi"><span {.section User.AFNever}class="hide_furi"{.end}>`
+				} else {
+					ret += fmt.Sprintf(`
+	<span class="furi"><span {.section User.LFNever}class="hide_furi"
+		{.end}{.section User.LFNotKnown}{.section Known%v}class="hide_furi"
+		{.end}{.end}{.section User.LFNotStudying}{.section Studying%v}class="hide_furi"{.end}{.end}>`, 
+					srsItem.Number, srsItem.Number)
+				}
+			} else {
+				ret += `<span class="furi"><span>`
+			}
 			for i := 0; i < fir; i++ {
 				ret += string(rrunes[i])
 			}
-			ret += "</div>"
+			ret += "</span>"
 			for i := 0; i < fij; i++ {
 				ret += string(jrunes[i])
 			}
@@ -343,12 +361,12 @@ func (t *parsingText) parseFurigana(s string, pos int) int {
 		}
 	}
 	if len(parts) == 2 {
-		t.result += makeHtmlWithFuri(parts[0], parts[1])
+		t.result += makeHtmlWithFuri(parts[0], parts[1], true, nil)
 	} else {
 		found := false
 		for _, f := range(t.chunk.SRSItems) {
 			if f.Japanese == parts[0] {
-				t.result += f.HTMLWithFuri
+				t.result += makeHtmlWithFuri(f.Japanese, f.Reading, true, f)
 				found = true
 			}
 		}
@@ -387,6 +405,6 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 	%v
 	<div class="comment">%v</div>
 </div>
-`, class, fields[0], fields[1], makeHtmlWithFuri(fields[3], fields[4]), fields[2], fields[5])
+`, class, fields[0], fields[1], makeHtmlWithFuri(fields[3], fields[4], false, nil), fields[2], fields[5])
 	return pos
 }

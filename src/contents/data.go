@@ -4,6 +4,7 @@ import (
 	"log"
 	"util"
 	"main/config"
+	"template"
 )
 
 // ***************************** STRUCTURES *********************
@@ -48,9 +49,9 @@ type Chunk struct {
 	Lesson *Lesson
 	Level *Level
 	Title, DescHTML string
-	Contents string
+	Contents *template.Template
 	Summary []string
-	SRSItems []SRSItem
+	SRSItems []*SRSItem
 }
 func (c *Chunk) FullId() string {
 	return c.Level.Id + "/" + c.Lesson.Id + "/" + c.Id
@@ -64,6 +65,7 @@ type SRSItem struct {
 	Meaning, Japanese, Reading, Comment string
 	Long bool
 	HTMLWithFuri string
+	Number int
 }
 
 // *************************** WHERE THE DATA LIES **************

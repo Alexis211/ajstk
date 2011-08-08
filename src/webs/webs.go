@@ -25,7 +25,7 @@ var tpl = map[string]*template.Template {
 	"home": nil,
 	"login": nil,
 	"register": nil,
-/*	"settings": nil, */
+	"settings": nil,
 
 	"study_home": nil,
 	"browse": nil,
@@ -57,6 +57,7 @@ func Serve() {
 	http.Handle("/login", &sessionView{&tplView{"/login", "login", loginView}} )
 	http.Handle("/register", &sessionView{&tplView{"/register", "register", registerView}} )
 	http.Handle("/logout", &sessionView{&redirectView{"/logout", logoutView}} )
+	http.Handle("/settings", &sessionView{&tplView{"/settings", "settings", settingsView}} )
 
 	http.Handle("/go_study/", &sessionView{&redirectView{"", goStudyView}} )
 	http.Handle("/study_home/", &sessionView{&tplView{"/study_home/", "study_home", studyHomeView}})

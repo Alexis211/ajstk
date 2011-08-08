@@ -101,6 +101,7 @@ func closeUnusedDBs() {
 func (u *User) loadUp() {
 	u.checkTables()
 	u.loadStudyStatus()
+	u.checkFuriCfg()
 }
 
 func (u *User) checkTables() {
@@ -111,6 +112,7 @@ func (u *User) checkTables() {
 		)
 	`)
 	u.checkStudyTables()
+	u.checkSRSTables()
 }
 
 func (u *User) SetAttr(name string, value string) {

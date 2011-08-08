@@ -235,9 +235,3 @@ func (u *User) SetChunkStatus(chunk *contents.Chunk, status int64) {
 	}
 	u.CheckNewAvailableLessons()
 }
-
-func (u *User) IsChunkSRSDone(chunk *contents.Chunk) bool {
-	if u.GetChunkStudy(chunk) != CS_REPEAT { return false }
-	//TODO !!!
-	return true //means nothing, just for testing
-}

@@ -4,6 +4,7 @@ import (
 	"http"
 	"strings"
 	"os"
+	"fmt"
 )
 
 import (
@@ -104,6 +105,55 @@ func logoutView(req *http.Request, s *session) string {
 	return rurl
 }
 
+func settingsView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=/settings")
+	}
+
+	ret := giveTplData{
+		"Email": s.User.GetAttr("email"),
+		"FullName": s.User.GetAttr("fullname"),
+	}
+
+	if req.FormValue("email") != "" && req.FormValue("fullname") != "" {
+		ret["Email"] = req.FormValue("email")
+		ret["FullName"] = req.FormValue("fullname")
+		s.User.SetAttr("email", req.FormValue("email"))
+		s.User.SetAttr("fullname", req.FormValue("fullname"))
+		ret["Message"] = messages["InfoUpdated"]
+	}
+
+	apw, pw1, pw2 := req.FormValue("apw"), req.FormValue("pw1"), req.FormValue("pw2")
+	if apw != "" && pw1 != "" && pw2 != "" {
+		if !s.User.CheckPass(apw) {
+			ret["Error"] = messages["BadActualPassword"]
+		} else if pw1 != pw2 {
+			ret["Error"] = messages["MustEnterSamePasswordTwice"]
+		} else {
+			s.User.SetAttr("password", util.StrSHA1(pw1))
+			ret["Message"] = messages["InfoUpdated"]
+		}
+	}
+
+	lessfuri, ok1 := map[string]int{
+		"always": study.LF_ALWAYS,
+		"notknown": study.LF_NOT_KNOWN,
+		"notstudying": study.LF_NOT_STUDYING,
+		"never": study.LF_NEVER,
+	}[req.FormValue("lessfuri")]
+	anyfuri, ok2 := map[string]int {
+		"always": study.AF_ALWAYS,
+		"never": study.AF_NEVER,
+	}[req.FormValue("anyfuri")]
+	if ok1 && ok2 {
+		s.User.SetLessFuri(lessfuri)
+		s.User.SetAnyFuri(anyfuri)
+		ret["Message"] = messages["InfoUpdated"]
+	}
+
+	return ret
+}
+
 // ==================================================
 
 func goStudyView(req *http.Request, s *session) string {
@@ -140,6 +190,7 @@ func studyHomeView(req *http.Request, s *session) interface{} {
 
 	//TODO here : get SRS status
 	ret := giveTplData{
+		"Levels": contents.Levels,
 	}
 
 	lvl, ok := contents.LevelsMap[s.User.GetAttr("current_study_lvl")]
@@ -215,11 +266,29 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 		"Level": lvl,
 		"Lesson": less,
 		"Chunk": chunk,
-		"Hi": "hi",
 	}
 	if s.User != nil && s.User.GetChunkStudy(chunk) != study.CS_NOT_AVAILABLE {
 		ret["Study"] = study.ChunkWithStatus{chunk, s.User.GetChunkStudy(chunk), s.User}
 	}
+
+	giveTextTpl := giveTplData{
+		"User": s.User,
+	}
+
+	srsItemsWS := s.User.GetSRSItemStatuses(chunk)
+	ret["SRSItemsWS"] = srsItemsWS
+	for _, ss := range srsItemsWS {
+		if ss.Status >= study.SS_LEARNING {
+			giveTextTpl[fmt.Sprintf("Studying%v", ss.Item.Number)] = true
+		}
+		if ss.Status == study.SS_DONE {
+			giveTextTpl[fmt.Sprintf("Known%v", ss.Item.Number)] = true
+		}
+	}
+	text := util.StringWriter{""}
+	chunk.Contents.Execute(&text, giveTextTpl)
+	ret["ChunkText"] = text.Str
+
 	return ret
 }
 

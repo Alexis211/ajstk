@@ -62,3 +62,11 @@ func UUIDGen() string {
 	f.Close()
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
+
+type StringWriter struct {
+	Str string
+}
+func (s *StringWriter) Write(p []byte) (n int, err os.Error) {
+	s.Str += string(p)
+	return len(p), nil
+}
