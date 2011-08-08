@@ -215,9 +215,9 @@ func (u *User) SetChunkStatus(chunk *contents.Chunk, status int64) {
 	before := u.GetChunkStudy(chunk)
 	if before == CS_NOT_AVAILABLE || status == CS_NOT_AVAILABLE || status == before { return }
 	if status == CS_REPEAT {
-		u.SRSAddItems(chunk)
+		u.addSRSItems(chunk)
 	} else if before == CS_REPEAT {
-		u.SRSRemoveItems(chunk)
+		u.removeSRSItems(chunk)
 	}
 	u.SetChunkStudy(chunk, status)
 	// update lesson status

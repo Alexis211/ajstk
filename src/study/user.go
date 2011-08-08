@@ -179,6 +179,6 @@ func (u *User) DBQueryFetchAll(sql string, v ...interface{}) [][]interface{} {
 func (u *User) DBQuerySt(sql string, v ...interface{}) *sqlite3.Statement {
 	u.openDB()
 	st, e := u.db.Prepare(sql, v...)
-	if e != nil { log.Panicf("SQL error : %v (query : %v)", e, st.SQLSource()) }
+	if e != nil { log.Panicf("SQL error : %v ; query : %v", e, sql) }
 	return st
 }
