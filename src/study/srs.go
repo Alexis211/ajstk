@@ -62,8 +62,11 @@ type SRSItemWithStatus struct {
 	Status int64
 	Box int
 }
+func (i SRSItemWithStatus) Studying() bool { return i.Status >= SS_LEARNING }
+func (i SRSItemWithStatus) Known() bool { return i.Status == SS_DONE }
 
 func (u *User) checkSRSTables() {
+	//TODO !!!
 }
 
 func (u *User) GetSRSItemStatuses(chunk *contents.Chunk) []SRSItemWithStatus {
@@ -78,7 +81,11 @@ func (u *User) GetSRSItemStatuses(chunk *contents.Chunk) []SRSItemWithStatus {
 				ret[id].Status = SS_LEARNING
 			}
 		} else if std == CS_REPEAT {
-			//TODO : take into account user progress
+			//TODO : take into account user progress. THE FOLLOWING 4 LINES ARE BAD
+			for id := range ret {
+				ret[id].Status = SS_DONE
+				ret[id].Box = 10
+			}
 		} else if std == CS_DONE {
 			for id := range ret {
 				ret[id].Status = SS_DONE
@@ -93,5 +100,15 @@ func (u *User) IsChunkSRSDone(chunk *contents.Chunk) bool {
 	if u.GetChunkStudy(chunk) != CS_REPEAT { return false }
 	 //TODO !!!
 	return true //means nothing, just for testing
+}
+
+// ===================================
+
+func (u *User) SRSAddItems(chunk *contents.Chunk) {
+	// TODO
+}
+
+func (u *User) SRSRemoveItems(chunk *contents.Chunk) {
+	// TODO
 }
 

@@ -1,10 +1,10 @@
 package contents
 
-/* ************************************* TODO list : *************
+/* ************************************* TODO list (finished) : *************
   -	Select a template language to use, write stuff so that the parsed text is not
-    just HTML, but a user-info-specific template.
-  - Write parser for SRS items >> DONE, now connect to user-specific info
-  - Write parser for inline furigana >> DONE, now connect to user-specific info
+    just HTML, but a user-info-specific template. >> DONE
+  - Write parser for SRS items >> DONE, now connect to user-specific info >> DONE
+  - Write parser for inline furigana >> DONE, now connect to user-specific info >> DONE
 ********************************* */
 
 import (
@@ -39,7 +39,7 @@ func parseChunk(lines []string) *Chunk {
 `, slideTitle, slideText)
 		ret.Summary = append(ret.Summary, slideTitle)
 	}
-	fmt.Printf(cont)
+	// fmt.Printf(cont)		//DEBUG
 	ret.Contents = template.MustParse(cont, nil)
 
 	return ret
@@ -368,6 +368,7 @@ func (t *parsingText) parseFurigana(s string, pos int) int {
 			if f.Japanese == parts[0] {
 				t.result += makeHtmlWithFuri(f.Japanese, f.Reading, true, f)
 				found = true
+				break
 			}
 		}
 		if !found {
@@ -398,13 +399,20 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 	if len(fields) != 6 {
 		fmt.Errorf("Fail. Expected continuation to SRS item data.")
 	}
+	num := 0
+	for _, f := range t.chunk.SRSItems {
+		if f.Japanese == fields[3] {
+			num = f.Number
+			break
+		}
+	}
 	t.result += fmt.Sprintf(
-`<div class="%v">
+`<div class="%v{.section Known%v} siknown{.or}{.section Studying%v} sib{Box%v}{.end}{.end}">
 	<h6>%v / %v</h6>
 	<strong>%v</strong>
 	%v
 	<div class="comment">%v</div>
 </div>
-`, class, fields[0], fields[1], makeHtmlWithFuri(fields[3], fields[4], false, nil), fields[2], fields[5])
+`, class, num, num, num, fields[0], fields[1], makeHtmlWithFuri(fields[3], fields[4], false, nil), fields[2], fields[5])
 	return pos
 }

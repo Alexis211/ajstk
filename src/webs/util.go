@@ -37,7 +37,7 @@ func (v *tplView) handle(w http.ResponseWriter, req *http.Request, s *session) {
 		}
 	}()
 	d := v.getData(req, s)
-	fmt.Printf("%#v\n", d)
+	// fmt.Printf("%#v\n", d) // DEBUG
 
 	if ee, ok := d.(getDataError); ok {
 		w.WriteHeader(ee.Code)

@@ -278,12 +278,13 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 	srsItemsWS := s.User.GetSRSItemStatuses(chunk)
 	ret["SRSItemsWS"] = srsItemsWS
 	for _, ss := range srsItemsWS {
-		if ss.Status >= study.SS_LEARNING {
+		if ss.Studying() {
 			giveTextTpl[fmt.Sprintf("Studying%v", ss.Item.Number)] = true
 		}
-		if ss.Status == study.SS_DONE {
+		if ss.Known() {
 			giveTextTpl[fmt.Sprintf("Known%v", ss.Item.Number)] = true
 		}
+		giveTextTpl[fmt.Sprintf("Box%v", ss.Item.Number)] = ss.Box
 	}
 	text := util.StringWriter{""}
 	chunk.Contents.Execute(&text, giveTextTpl)
