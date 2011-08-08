@@ -32,7 +32,7 @@ func dicSearchView(req *http.Request, s *session) interface{} {
 			"Dics": dic.Dics,
 		}
 	}
-	return getDataError{http.StatusNotFound, os.NewError("No such dictionnary.")}
+	return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchDictionary"])}
 }
 
 // ==================================================
@@ -118,12 +118,12 @@ func goStudyView(req *http.Request, s *session) string {
 
 	lvl, ok := contents.LevelsMap[path[2]]
 	if !ok {
-		panic(getDataError{http.StatusNotFound, os.NewError("No such level.")})
+		panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])})
 	}
 
 	less, ok := lvl.LessonsMap[path[3]]
 	if !ok {
-		panic(getDataError{http.StatusNotFound, os.NewError("No such lesson.")})
+		panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])})
 	}
 
 	s.User.StartStudyingLesson(less)
@@ -163,7 +163,7 @@ func browseView(req *http.Request, s *session) interface {} {
 		if l, ok := contents.LevelsMap[path[2]]; ok {
 			lvl = l
 		} else {
-			return getDataError{http.StatusNotFound, os.NewError("No such level.")}
+			return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])}
 		}
 	}
 
@@ -180,7 +180,7 @@ func browseView(req *http.Request, s *session) interface {} {
 		if l, ok := lvl.LessonsMap[path[3]]; ok {
 			less = l
 		} else {
-			return getDataError{http.StatusNotFound, os.NewError("No such lesson.")}
+			return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])}
 		}
 	}
 

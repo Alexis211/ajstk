@@ -38,6 +38,10 @@ var tpl = map[string]*template.Template {
 	"srs_review_drill": nil,*/
 }
 
+var Info struct {
+	ExtraPages []string
+	Messages map[string]string
+}
 var messages = make(map[string]string)
 
 // ************************** IMPORTANT FUNCTIONS ****************
@@ -46,6 +50,9 @@ func Serve() {
 	log.Printf("Starting web server at %v...", config.Conf.HTTPServeAddr)
 
 	http.Handle("/", &sessionView{&tplView{"/", "home", homeView}} )
+	for _, page := range Info.ExtraPages {
+		http.Handle("/" + page, &sessionView{&tplView{"/" + page, page, homeView}} )
+	}
 
 	http.Handle("/login", &sessionView{&tplView{"/login", "login", loginView}} )
 	http.Handle("/register", &sessionView{&tplView{"/register", "register", registerView}} )
@@ -91,7 +98,12 @@ func LoadWebFilesDir() {
 
 func LoadWebFiles() {
 	log.Printf("Loading web server templates...")
-	util.LoadJSONFile(config.Conf.WebFolder + "/messages.json", &messages)
+	util.LoadJSONFile(config.Conf.WebFolder + "/info.json", &Info)
+	messages = Info.Messages
+	for _, page := range Info.ExtraPages {
+		tpl[page] = nil
+	}
+
 	for name, _ := range tpl {
 		log.Printf("Loading template : %v...", name)
 		tpl[name] = loadExtendedTemplate(config.Conf.WebFolder + "/tpl", name)
