@@ -215,9 +215,33 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 		"Level": lvl,
 		"Lesson": less,
 		"Chunk": chunk,
+		"Hi": "hi",
 	}
-	if s.User != nil {
-		ret["ChunkStudy"] = study.ChunkWithStatus{chunk, s.User.GetChunkStudy(chunk)}
+	if s.User != nil && s.User.GetChunkStudy(chunk) != study.CS_NOT_AVAILABLE {
+		ret["Study"] = study.ChunkWithStatus{chunk, s.User.GetChunkStudy(chunk), s.User}
 	}
 	return ret
+}
+
+func goChunkView(req *http.Request, s *session) string {
+	path := strings.Split(req.URL.Path, "/", -1)
+
+	if len(path) < 4 || path[5] == "" {
+		panic(getDataError{http.StatusNotFound, os.NewError("Malformed request")})
+	}
+
+	lvl, ok := contents.LevelsMap[path[2]]
+	if !ok { panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])}) }
+	less, ok := lvl.LessonsMap[path[3]]
+	if !ok { panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])}) }
+	chunk, ok := less.ChunksMap[path[4]]
+	if !ok { panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchChunk"])}) }
+
+	if s.User == nil {
+		panic(getDataError{http.StatusForbidden, os.NewError("Reserved to logged in users.")})
+	}
+	if path[5] == "reading" { s.User.SetChunkStatus(chunk, study.CS_READING) }
+	if path[5] == "repeat" { s.User.SetChunkStatus(chunk, study.CS_REPEAT) }
+	if path[5] == "done" { s.User.SetChunkStatus(chunk, study.CS_DONE) }
+	return "/chunk_summary/" + chunk.FullId()
 }

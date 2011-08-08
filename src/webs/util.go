@@ -54,11 +54,11 @@ func (v *tplView) handle(w http.ResponseWriter, req *http.Request, s *session) {
 
 type redirectView struct {
 	checkUniqueURL string
-	getRedirectUrl func(req *http.Request, s *session) string
+	process func(req *http.Request, s *session) string
 }
 
 func (v *redirectView) handle(w http.ResponseWriter, req *http.Request, s *session) {
-	if v.checkUniqueURL != "" && req.URL.RawPath[0:len(v.checkUniqueURL)] != v.checkUniqueURL {
+	if v.checkUniqueURL != "" && req.URL.Path != v.checkUniqueURL {
 		w.WriteHeader(http.StatusNotFound)
 		fmt.Fprintf(w, "<pre>404 page not found</pre>")
 		return
@@ -82,7 +82,7 @@ func (v *redirectView) handle(w http.ResponseWriter, req *http.Request, s *sessi
 		}
 	}()
 
-	rurl := v.getRedirectUrl(req, s)
+	rurl := v.process(req, s)
 	if rurl == "" { rurl = "/" }
 	w.Header().Add("Location", rurl)
 	w.WriteHeader(http.StatusFound)

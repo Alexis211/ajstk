@@ -124,7 +124,8 @@ THE STUDY.USER INTERFACE
 Here are the functions available to the study.User object :
 - GetLessonStatuses(level)
 - GetChunkStatuses(level, lesson)
-- GetSRSItemStatuses(level, lesson, chunk)
 - StartStudyingLesson(level, lesson)
 - SetChunkStatus(level, lesson, chunk, status[reading,repeat,done])
+- GetSRSItemStatuses(level, lesson, chunk)
+- IsChunkSRSDone(level, lesson, chunk) (select where box < 6, if exists => ret false)
 - ... more (srs)

@@ -36,6 +36,7 @@ func (s LessonWithStatus) Done() bool { return s.Status == LS_DONE }
 type ChunkWithStatus struct {
 	Chunk *contents.Chunk
 	Status int64
+	User *User
 }
 func (s ChunkWithStatus) StatusStr() string {
 	return []string{"not_available", "reading", "repeat", "done"}[s.Status]
@@ -43,6 +44,9 @@ func (s ChunkWithStatus) StatusStr() string {
 func (s ChunkWithStatus) Reading() bool { return s.Status == CS_READING }
 func (s ChunkWithStatus) Repeat() bool { return s.Status == CS_REPEAT }
 func (s ChunkWithStatus) Done() bool { return s.Status == CS_DONE }
+func (s ChunkWithStatus) RepeatDone() bool {
+	return s.User.IsChunkSRSDone(s.Chunk)
+}
 
 func (u *User) checkStudyTables() {
 	// lesson_study.id = "Level/Lesson"
@@ -187,7 +191,7 @@ func (u *User) GetLessonStatuses(level *contents.Level) []LessonWithStatus {
 func (u *User) GetChunkStatuses(lesson *contents.Lesson) []ChunkWithStatus {
 	ret := make([]ChunkWithStatus, 0, len(lesson.Chunks))
 	for _, chunk := range lesson.Chunks {
-		ret = append(ret, ChunkWithStatus{chunk, CS_NOT_AVAILABLE})
+		ret = append(ret, ChunkWithStatus{chunk, CS_NOT_AVAILABLE, u})
 	}
 	if u != nil {
 		for id, cws := range ret {
@@ -207,3 +211,33 @@ func (u *User) StartStudyingLesson(lesson *contents.Lesson) {
 	}
 }
 
+func (u *User) SetChunkStatus(chunk *contents.Chunk, status int64) {
+	before := u.GetChunkStudy(chunk)
+	if before == CS_NOT_AVAILABLE || status == CS_NOT_AVAILABLE || status == before { return }
+	if status == CS_REPEAT {
+		//TODO : add SRS items
+	} else if before == CS_REPEAT {
+		//TODO : remove SRS items
+	}
+	u.SetChunkStudy(chunk, status)
+	// update lesson status
+	lesson_done := true
+	for _, ch := range chunk.Lesson.Chunks {
+		if u.GetChunkStudy(ch) != CS_DONE {
+			lesson_done = false
+			break
+		}
+	}
+	if lesson_done {
+		u.SetLessonStudy(chunk.Lesson, LS_DONE)
+	} else {
+		u.SetLessonStudy(chunk.Lesson, LS_STUDYING)
+	}
+	u.CheckNewAvailableLessons()
+}
+
+func (u *User) IsChunkSRSDone(chunk *contents.Chunk) bool {
+	if u.GetChunkStudy(chunk) != CS_REPEAT { return false }
+	//TODO !!!
+	return true //means nothing, just for testing
+}

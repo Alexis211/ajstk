@@ -56,6 +56,7 @@ func Serve() {
 	http.Handle("/browse/", &sessionView{&tplView{"", "browse", browseView}} )
 	http.Handle("/chunk_summary/", &sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )
 	http.Handle("/chunk_read/", &sessionView{&tplView{"", "chunk_read", chunkSummaryView}} )
+	http.Handle("/go_chunk/", &sessionView{&redirectView{"", goChunkView}} )
 
 	http.Handle("/dic", &sessionView{&tplView{"/dic", "dic_results", dicSearchView}})
 
@@ -63,12 +64,12 @@ func Serve() {
 	http.Handle("/style/", http.FileServer(config.Conf.WebFolder, ""))
 	http.Handle("/js/", http.FileServer(config.Conf.WebFolder, ""))
 
-	http.Handle("/reload_tpl/", &sessionView{&redirectView{"/reload_tpl",
+	http.Handle("/reload_tpl", &sessionView{&redirectView{"/reload_tpl",
 		func(req *http.Request, s *session) string {
 			LoadWebFiles()
 			return req.FormValue("back")
 		}}})
-	http.Handle("/reload_data/", &sessionView{&redirectView{"/reload_data",
+	http.Handle("/reload_data", &sessionView{&redirectView{"/reload_data",
 		func(req *http.Request, s *session) string {
 			contents.Info, contents.Levels, contents.LevelsMap = contents.LoadData()
 			return req.FormValue("back")
