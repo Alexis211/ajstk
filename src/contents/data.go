@@ -119,19 +119,18 @@ func loadLesson(level, lesson string, lp *Level) *Lesson {
 
 	ret.Chunks = make([]*Chunk, len(ret.Info.Chunks))
 	for id, name := range ret.Info.Chunks {
-		ret.Chunks[id] = loadChunk(level, lesson, name)
+		ret.Chunks[id] = loadChunk(level, lesson, name, ret)
 		ret.ChunksMap[name] = ret.Chunks[id]
 		ret.Chunks[id].Id = name
-		ret.Chunks[id].Lesson = ret
 		ret.Chunks[id].Level = lp
 	}
 	return ret
 }
 
-func loadChunk(level, lesson, chunk string) *Chunk {
+func loadChunk(level, lesson, chunk string, lessPtr *Lesson) *Chunk {
 	log.Printf("Loading chunk : %v / %v / %v...", level, lesson, chunk)
 
 	lines := util.ReadLines(config.Conf.ContentsFolder + "/" + level + "/" + lesson + "/" + chunk)
 
-	return parseChunk(lines)
+	return parseChunk(lines, lessPtr)
 }

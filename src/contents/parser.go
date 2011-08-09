@@ -14,8 +14,8 @@ import (
 	"template"
 )
 
-func parseChunk(lines []string) *Chunk {
-	ret := &Chunk{Title: lines[0], Summary: make([]string, 0, 10)}
+func parseChunk(lines []string, lesson *Lesson) *Chunk {
+	ret := &Chunk{Title: lines[0], Summary: make([]string, 0, 10), Lesson: lesson}
 	lines = lines[1:]
 
 	ret.DescHTML, lines = parseText(lines, false, nil)
@@ -369,6 +369,19 @@ func (t *parsingText) parseFurigana(s string, pos int) int {
 				t.result += makeHtmlWithFuri(f.Japanese, f.Reading, true, f)
 				found = true
 				break
+			}
+		}
+		if !found {
+			for _, c := range(t.chunk.Lesson.Chunks) {
+				if c == t.chunk { break }
+				for _, f := range c.SRSItems {
+					if f.Japanese == parts[0] {
+						t.result += makeHtmlWithFuri(f.Japanese, f.Reading, true, f)
+						found = true
+						break
+					}
+				}
+				if found { break }
 			}
 		}
 		if !found {

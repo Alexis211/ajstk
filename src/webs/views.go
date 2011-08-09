@@ -185,7 +185,7 @@ func goStudyView(req *http.Request, s *session) string {
 
 func studyHomeView(req *http.Request, s *session) interface{} {
 	if s.User == nil {
-		return redirectResponse("/login?back=study_home")
+		return redirectResponse("/login?back=/study_home")
 	}
 
 	//TODO here : get SRS status
@@ -285,6 +285,20 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 			giveTextTpl[fmt.Sprintf("Known%v", ss.Item.Number)] = true
 		}
 		giveTextTpl[fmt.Sprintf("Box%v", ss.Item.Number)] = ss.Box
+	}
+	if s.User != nil {		// add SRS data from the rest of the lesson
+		for _, c := range chunk.Lesson.Chunks {
+			if c == chunk { break }
+			sl := s.User.GetSRSItemStatuses(c)
+			for _, ss := range sl {
+				if ss.Studying() {
+					giveTextTpl[fmt.Sprintf("Studying%v", ss.Item.Number)] = true
+				}
+				if ss.Known() {
+					giveTextTpl[fmt.Sprintf("Known%v", ss.Item.Number)] = true
+				}
+			}
+		}
 	}
 	text := util.StringWriter{""}
 	chunk.Contents.Execute(&text, giveTextTpl)

@@ -2,6 +2,7 @@ package webs
 
 import (
 	"http"
+	"fmt"
 )
 
 import (
@@ -18,6 +19,7 @@ import (
 type session struct {
 	Admin bool
 	User *study.User
+	Id string
 }
 
 type sessionViewHandler interface {
@@ -41,11 +43,12 @@ func (v *sessionView) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 	if sessid == "" {
 		sessid = util.UUIDGen()
-		w.Header().Add("Set-Cookie", "sessid=" + sessid)
+		w.Header().Add("Set-Cookie", "sessid=" + sessid + "; path=/")
 	}
 	sess, ok := sessions[sessid]
 	if !ok {
 		sess = new(session)
+		sess.Id = sessid
 		sessions[sessid] = sess
 	}
 	v.h.handle(w, req, sess)

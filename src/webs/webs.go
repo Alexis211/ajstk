@@ -60,7 +60,7 @@ func Serve() {
 	http.Handle("/settings", &sessionView{&tplView{"/settings", "settings", settingsView}} )
 
 	http.Handle("/go_study/", &sessionView{&redirectView{"", goStudyView}} )
-	http.Handle("/study_home/", &sessionView{&tplView{"/study_home/", "study_home", studyHomeView}})
+	http.Handle("/study_home", &sessionView{&tplView{"/study_home", "study_home", studyHomeView}})
 	http.Handle("/browse/", &sessionView{&tplView{"", "browse", browseView}} )
 	http.Handle("/chunk_summary/", &sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )
 	http.Handle("/chunk_read/", &sessionView{&tplView{"", "chunk_read", chunkSummaryView}} )
