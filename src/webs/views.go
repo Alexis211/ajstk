@@ -238,6 +238,11 @@ func browseView(req *http.Request, s *session) interface {} {
 		}
 	}
 
+	if s.User != nil && lvl.Id == s.User.GetAttr("current_study_lvl") && less.Id == s.User.GetAttr("current_study_less") {
+		return redirectResponse("/study_home")
+	}
+
+
 	ret := giveTplData{
 		"Levels": contents.Levels,
 		"Level": lvl,
@@ -282,6 +287,8 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 
 	giveTextTpl := giveTplData{
 		"User": s.User,
+		"Hidden": messages["Hidden"],
+		"Hideable": messages["Hideable"],
 	}
 
 	srsItemsWS := s.User.GetSRSItemStatuses(chunk)

@@ -161,33 +161,40 @@ func parseText(lines []string, allowSRSItems bool, c *Chunk) (html string, nextl
 				} else {
 					ignoreUpTo = temp.parseSRS(lines, id)
 				}
+			} else if len(text) > 7 && text[0:7] == "\\class:" {
+				temp.setRootTag(classTag(text[7:]))
+			} else if len(text) > 7 && text[0:7] == "\\style:" {
+				temp.setRootTag(styleTag(text[7:]))
+			} else if text == "\\hidden" {
+				temp.setRootTag(hiddenTag(hiddenTagNumber))
+				hiddenTagNumber++
 			} else {
 				break
 			}
 		} else if len(text) > 2 && text[0:2] == "  " {
-			if temp.root_tag != "ol" && temp.root_tag != "ul" {
-				temp.setRootTag("blockquote")
+			if temp.root_tag == nil || !temp.root_tag.spansTwoSpaces() {
+				temp.setRootTag(htmlTag{"blockquote", true})
 			}
 			temp.push(text[2:])
 		} else if text[0] == ':' {
-			temp.setRootTag("table")
+			temp.setRootTag(htmlTag{"table", false})
 			temp.parseTableLine(text)
 		} else if text[0] == '-' {
-			temp.setRootTag("ul")
+			temp.setRootTag(htmlTag{"ul", true})
 			temp.startLI()
 			temp.push(text[1:])
 		} else if text[0] == '#' {
-			temp.setRootTag("ol")
+			temp.setRootTag(htmlTag{"ol", true})
 			temp.startLI()
 			temp.push(text[1:])
 		} else if text[0] == '=' {
 			n := 1
 			for ;text[n] == '='; n++ {}
-			temp.setRootTag(fmt.Sprintf("h%v", n+1))
+			temp.setRootTag(htmlTag{fmt.Sprintf("h%v", n+1), false})
 			temp.push(text[n:])
 			temp.finish()	// titles do not span several lines.
 		} else {
-			temp.setRootTag("p")
+			temp.setRootTag(htmlTag{"p", false})
 			temp.push(text)
 		}
 	}
@@ -198,28 +205,74 @@ func parseText(lines []string, allowSRSItems bool, c *Chunk) (html string, nextl
 	return temp.result, lines[last:]
 }
 
+type rootTag interface {
+	begin() string
+	end() string
+	sameAs (rootTag) bool
+	spansTwoSpaces() bool
+}
+type htmlTag struct {
+	tag string
+	spans bool
+}
+
+func (t htmlTag) begin() string { return "<" + t.tag + ">" }
+func (t htmlTag) end() string { return "</" + t.tag + ">" }
+func (t htmlTag) spansTwoSpaces() bool { return t.spans }
+func (t htmlTag) sameAs(t2 rootTag) bool {
+	if tt, ok := t2.(htmlTag); ok && tt.tag == t.tag { return true }
+	return false
+}
+
+type classTag string
+func (t classTag) begin() string { return fmt.Sprintf(`<p class="%v">`, string(t)) }
+func (t classTag) end() string { return "</p>" }
+func (t classTag) spansTwoSpaces() bool { return true }
+func (t classTag) sameAs(t2 rootTag) bool { return false }
+
+type styleTag string
+func (t styleTag) begin() string { return fmt.Sprintf(`<p style="%v">`, string(t)) }
+func (t styleTag) end() string { return "</p>" }
+func (t styleTag) spansTwoSpaces() bool { return true }
+func (t styleTag) sameAs(t2 rootTag) bool { return false }
+
+type hiddenTag int
+var hiddenTagNumber = 1
+func (t hiddenTag) begin() string {
+	return fmt.Sprintf(
+		`<blockquote>
+			<a style="font-size: 0.8em" href="#" id="hs%v" 
+				onclick="$('hidden%v').show();$('hs%v').hide();$('hh%v').show()">{Hidden}</a>
+			<a style="font-size: 0.8em; display: none" href="#" id="hh%v"
+				onclick="$('hidden%v').hide();$('hs%v').show();$('hh%v').hide()">{Hideable}</a>
+			<div style="display: none" id="hidden%v">`, t, t, t, t, t, t, t, t, t)
+}
+func (t hiddenTag) end() string { return "</div></blockquote>" }
+func (t hiddenTag) spansTwoSpaces() bool { return true }
+func (t hiddenTag) sameAs(t2 rootTag) bool { return false }
+
 type parsingText struct {
 	chunk *Chunk		// so that we can have info about SRS furigana items
 	root bool
 	result string
-	root_tag string		// either blockquote, table, ul, ol, or p
+	root_tag rootTag		// either blockquote, table, ul, ol, or p
 	temp_txt string
 	is_in_li bool
 }
 
 func(t *parsingText) finish() {
 	t.finishTempTxt()
-	if t.root_tag != "" {
-		t.result += "</" + t.root_tag + ">\n"
-		t.root_tag = ""
+	if t.root_tag != nil {
+		t.result += t.root_tag.end() + "\n"
+		t.root_tag = nil
 	}
 }
 
-func (t *parsingText) setRootTag(tag string) {
-	if t.root_tag == tag { return }
+func (t *parsingText) setRootTag(tag rootTag) {
+	if t.root_tag != nil  && t.root_tag.sameAs(tag) { return }
 	t.finish()
 	t.root_tag = tag
-	t.result += "<" + tag + ">"
+	t.result += tag.begin()
 }
 
 func (t *parsingText) finishTempTxt() {
@@ -297,6 +350,8 @@ func (t *parsingText) parseForSpan(s string, isTable bool) string {
 			stack = t.moarStack("em", stack)
 		} else if char == '{' || char == '｛' {
 			ignoreUpTo = t.parseFurigana(s, pos)
+		} else if char == '[' {
+			ignoreUpTo = t.parseLink(s, pos)
 		} else {
 			t.result += string(char)
 		}
@@ -391,9 +446,40 @@ func (t *parsingText) parseFurigana(s string, pos int) int {
 	return ret
 }
 
+func (t *parsingText) parseLink(s string, pos int) int {
+	ret := pos
+	str := ""
+	escape := false
+	for p, char := range s {
+		if p < pos+1 { continue }
+		if escape {
+			str += string(char)
+			escape = false
+		} else if char == '\\' {
+			escape = true
+		} else if char == ']' {
+			ret = p
+			break
+		} else {
+			str += string(char)
+		}
+	}
+	if str[0] == '!' {			// image
+		t.result += fmt.Sprintf(`<img src="%v" />`, str[1:])
+	} else {
+		spl := strings.Split(str, "|", 2)
+		if len(spl) == 2 {
+			t.result += fmt.Sprintf(`<a href="%v">%v</a>`, spl[0], spl[1])
+		} else {
+			t.result += fmt.Sprintf(`<a href="%v">%v</a>`, str, str)
+		}
+	}
+	return ret
+}
+
 func (t *parsingText) parseSRS(lines []string, start int) int {
 	if lines[start][0:5] != "\\srs:" {
-		fmt.Errorf("Fail. should not appear I believe.")
+		log.Panicf("Fail. should not appear I believe.")
 	}
 	fields := strings.Split(lines[start][5:], ":", -1)
 	class := "srs_item"
@@ -410,7 +496,7 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 		pos++
 	}
 	if len(fields) != 6 {
-		fmt.Errorf("Fail. Expected continuation to SRS item data.")
+		log.Panicf("Fail. Expected continuation to SRS item data.")
 	}
 	num := 0
 	for _, f := range t.chunk.SRSItems {

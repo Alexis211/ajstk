@@ -80,6 +80,7 @@ func Serve() {
 	http.Handle("/image/", http.FileServer(config.Conf.WebFolder, ""))
 	http.Handle("/style/", http.FileServer(config.Conf.WebFolder, ""))
 	http.Handle("/js/", http.FileServer(config.Conf.WebFolder, ""))
+	http.Handle("/media/", http.FileServer(config.Conf.ContentsFolder, ""))
 
 	http.Handle("/reload_tpl", &sessionView{&redirectView{"/reload_tpl",
 		func(req *http.Request, s *session) string {
