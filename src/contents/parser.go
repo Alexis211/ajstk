@@ -56,12 +56,25 @@ func getSRSItems(lines []string) []*SRSItem {
 	var long = false
 	for _, text := range(lines) {
 		if busy != nil {
-			if len(text) > 2 && text[0:2] == "  " {
+			if len(text) >= 2 && text[0:2] == "  " {
 				busy = append(busy, text[2:])
 			} else {
-				log.Panicf("Error : expected continuation to srs item %v", busy)
+				if len(busy) < 4 {
+					log.Panicf("Error : expected continuation to srs item %v", busy)
+				} else {
+					for len(busy) < 6 { busy = append(busy, "") }
+				}
 			}
-		} else if len(text) > 5 && text[0:5] == "\\srs:" {
+		}
+		if busy != nil && len(busy) == 6 {
+			ret = append(ret, &SRSItem {
+				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, makeHtmlWithFuri(busy[3], busy[4], false, nil), srsItemNumber,
+			})
+			srsItemNumber++
+			busy = nil
+			long = false
+		}
+		if len(text) > 5 && text[0:5] == "\\srs:" {
 			busy = strings.Split(text, ":", -1)
 			busy = busy[1:]
 			if len(busy) < 3 { long = true }
@@ -488,7 +501,7 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 	if len(fields) < 3 { class = "srs_item_big" }
 	pos := start + 1
 	for {
-		if pos < len(lines) && len(lines[pos]) > 2 && lines[pos][0:2] == "  " {
+		if pos < len(lines) && len(lines[pos]) >= 2 && lines[pos][0:2] == "  " {
 			fields = append(fields, lines[pos][2:])
 			if len(fields) == 6 { break }
 		} else {
@@ -497,9 +510,10 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 		}
 		pos++
 	}
-	if len(fields) != 6 {
+	if len(fields) < 4 {
 		log.Panicf("Fail. Expected continuation to SRS item data.")
 	}
+	for len(fields) < 6 { fields = append(fields, "") }
 	num := 0
 	for _, f := range t.chunk.SRSItems {
 		if f.Japanese == fields[3] {
