@@ -15,13 +15,14 @@ import (
 )
 
 func parseChunk(lines []string, lesson *Lesson) *Chunk {
-	ret := &Chunk{Title: lines[0], Summary: make([]string, 0, 10), Lesson: lesson}
+	ret := &Chunk{Title: lines[0], ToC: make([]*ChunkSlide, 0, 10), Lesson: lesson}
 	lines = lines[1:]
 
 	ret.DescHTML, lines = parseText(lines, false, nil)
 	ret.SRSItems = getSRSItems(lines)
 
 	cont := ""
+	partNum := 0
 	for len(lines) != 0 && (len(lines) != 1 || lines[0] != "") {
 		if lines[0][0:7] != "\\slide:" {
 			log.Panicf("Error : expected '\\slide:' directive in chunk file.")
@@ -31,13 +32,14 @@ func parseChunk(lines []string, lesson *Lesson) *Chunk {
 		slideText, nl := parseText(lines, true, ret)
 		lines = nl
 
+		partNum++
 		cont += fmt.Sprintf(`
-<div class="slide">
+<div class="slide" id="part%v" name="part%v">
 	<h1>%v</h1>
 	%v
 </div>
-`, slideTitle, slideText)
-		ret.Summary = append(ret.Summary, slideTitle)
+`, partNum, partNum, slideTitle, slideText)
+		ret.ToC = append(ret.ToC, &ChunkSlide{partNum, slideTitle})
 	}
 	// fmt.Printf(cont)		//DEBUG
 	ret.Contents = template.MustParse(cont, nil)

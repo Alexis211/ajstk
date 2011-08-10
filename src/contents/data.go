@@ -49,7 +49,7 @@ type Chunk struct {
 	Level *Level
 	Title, DescHTML string
 	Contents *template.Template
-	Summary []string
+	ToC []*ChunkSlide
 	SRSItems []*SRSItem
 }
 func (c *Chunk) FullId() string {
@@ -57,6 +57,11 @@ func (c *Chunk) FullId() string {
 }
 func (c *Chunk) HasSRS() bool {
 	return len(c.SRSItems) > 0
+}
+
+type ChunkSlide struct {
+	Number int
+	Title string
 }
 
 type SRSItem struct {

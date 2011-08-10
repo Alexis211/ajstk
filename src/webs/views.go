@@ -276,10 +276,13 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 	chunk, err := chunkViewParseUrl(req)
 	if err.Code != http.StatusOK { return err }
 
+	d, e := json.Marshal(chunk.ToC)
+	if e != nil { return getDataError{http.StatusInternalServerError, e} }
 	ret := giveTplData{
 		"Level": chunk.Level,
 		"Lesson": chunk.Lesson,
 		"Chunk": chunk,
+		"ToCJSON": string(d),
 	}
 	if s.User != nil && s.User.GetChunkStudy(chunk) != study.CS_NOT_AVAILABLE {
 		ret["Study"] = study.ChunkWithStatus{chunk, s.User.GetChunkStudy(chunk), s.User}
