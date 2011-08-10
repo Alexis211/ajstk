@@ -27,6 +27,7 @@ type User struct {
 	dbLastUsed int64
 
 	lessonStudy, chunkStudy map[string]int64
+	attrCache map[string]string
 }
 
 var users = make(map[string]*User)
@@ -90,6 +91,7 @@ func closeUnusedDBs() {
 		for _, user := range users {
 			if user.dbLastUsed < time.Seconds() - dbTimeout && user.db != nil {
 				user.db.Close()
+				log.Printf("Close user DB : %v", user.Username)
 				user.db = nil
 			}
 		}
@@ -99,6 +101,7 @@ func closeUnusedDBs() {
 // =================== USER BASIC FUNCTIONS
 
 func (u *User) loadUp() {
+	u.attrCache = make(map[string]string)
 	u.checkTables()
 	u.loadStudyStatus()
 	u.checkFuriCfg()
@@ -121,13 +124,20 @@ func (u *User) SetAttr(name string, value string) {
 	} else {
 		u.DBQuery("INSERT INTO 'attributes' VALUES(?, ?)", name, value)
 	}
+	u.attrCache[name] = value
 }
 
 func (u *User) GetAttr(name string) string {
-	if e, _ := u.DBQueryFetchOne("SELECT value FROM 'attributes' WHERE id = ?", name); e != nil {
-		return e[0].(string)
+	if r, ok := u.attrCache[name]; ok {
+		return r
+	} else {
+		if e, _ := u.DBQueryFetchOne("SELECT value FROM 'attributes' WHERE id = ?", name); e != nil {
+			u.attrCache[name] = e[0].(string)
+		} else {
+			u.attrCache[name] = ""
+		}
 	}
-	return ""
+	return u.attrCache[name]
 }
 
 func (u *User) CheckPass(pass string) bool {
@@ -143,6 +153,7 @@ func (u *User) dbFile() string {
 func (u *User) openDB() {
 	u.dbLastUsed = time.Seconds()
 	if u.db != nil { return }
+	log.Printf("Open user DB : %v", u.Username)
 	db, e := sqlite3.Open(u.dbFile())
 	if e != nil { log.Panicf("Unable to open user DB file %v : %v", u.dbFile(), e) }
 	u.db = db

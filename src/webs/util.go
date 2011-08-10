@@ -5,6 +5,7 @@ import (
 	"os"
 	"log"
 	"fmt"
+	"json"
 )
 
 // VARIOUS UTILITIES FOR MAKING WRITING VIEWS EASIER
@@ -86,4 +87,40 @@ func (v *redirectView) handle(w http.ResponseWriter, req *http.Request, s *sessi
 	if rurl == "" { rurl = "/" }
 	w.Header().Add("Location", rurl)
 	w.WriteHeader(http.StatusFound)
+}
+
+
+type jsonView struct {
+	checkUniqueURL string
+	getData func(req *http.Request, s *session) interface{}
+}
+
+func (v *jsonView) handle(w http.ResponseWriter, req *http.Request, s *session) {
+	if v.checkUniqueURL != "" && req.URL.Path != v.checkUniqueURL {
+		w.WriteHeader(http.StatusNotFound)
+		fmt.Fprintf(w, "<pre>404 page not found</pre>")
+		return
+	}
+
+	d := func() (ret interface{}) {
+		defer func() {
+			if e := recover(); e != nil {
+				if gde, ok := e.(getDataError); ok {
+					ret = gde
+				} else if ose, ok := e.(os.Error); ok {
+					ret = getDataError{http.StatusInternalServerError, ose}
+				} else {
+					ret = getDataError{http.StatusInternalServerError, os.NewError(fmt.Sprintf("%v", e))}
+				}
+			}
+		}()
+		return v.getData(req, s)
+	}()
+
+	dd, e := json.Marshal(d)
+	if e != nil {
+		fmt.Fprintf(w, "{Code: 500, Error: %#v}", e.String())
+	} else {
+		w.Write(dd)
+	}
 }

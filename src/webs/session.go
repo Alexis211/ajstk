@@ -2,7 +2,6 @@ package webs
 
 import (
 	"http"
-	"fmt"
 )
 
 import (

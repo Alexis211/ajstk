@@ -116,7 +116,8 @@ Fields are the following :
 - group and subgoup (indexes the table)
 - meaning, kanji, reading, comment
 - box ID, next review date (indexes the table)
-- a note to self for the user on that card
+
+Another SQL tables keeps notes to self for items, indexed by level.FullId and chunk.FullId
 
 THE STUDY.USER INTERFACE
 ========================
@@ -128,4 +129,11 @@ Here are the functions available to the study.User object :
 - SetChunkStatus(level, lesson, chunk, status[reading,repeat,done])
 - GetSRSItemStatuses(level, lesson, chunk)
 - IsChunkSRSDone(level, lesson, chunk) (select where box < 6, if exists => ret false)
-- ... more (srs)
+
+- GetSRSStats()
+- SRSActivateSubgroup(), SRSDeactivateSubgroup(), SRSIsSubgroupActivated(group, subgroup)
+- GetSRSReviewItems(group, [subgroup])
+- GetSRSTomorrowItems(group, [subgroup])
+- UpdateSRSItemStatuses(list of successfull and failed review items)
+- (GetSRSChunkItemsDrill(chunk))		-- does not depend on table srs_study
+- (GetSRSLessonItemsDrill(lesson))	-- does not depend on table srs_study

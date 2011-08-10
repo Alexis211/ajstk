@@ -13,7 +13,6 @@ type DicInfo struct {
 	Filename, Name, Format string
 }
 type DataInfo struct {
-	SRSGroups map[string][]string
 	Levels []string
 	DefaultLevel string
 	Dictionaries []DicInfo

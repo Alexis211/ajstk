@@ -1,6 +1,11 @@
 package study
 
 import (
+	"fmt"
+	"github.com/kuroneko/gosqlite3"
+)
+
+import (
 	"contents"
 )
 
@@ -63,6 +68,7 @@ type SRSItemWithStatus struct {
 	Item *contents.SRSItem
 	Status int64
 	Box int64
+	// TODO : add user comment
 }
 func (i SRSItemWithStatus) Studying() bool { return i.Status >= SS_LEARNING }
 func (i SRSItemWithStatus) Known() bool { return i.Status == SS_DONE }
@@ -76,7 +82,7 @@ func (u *User) checkSRSTables() {
 			meaning VARCHAR(256), japanese VARCHAR(256),
 				reading VARCHAR(256), comment VARCHAR(256),
 			box INTEGER, next_review VARCHAR(42),
-			noteToSelf VARCHAR(256),
+			subgroup_active INTEGER,
 			UNIQUE (groupe, subgroup, japanese),
 			UNIQUE (groupe, subgroup, meaning)
 		)`)
@@ -150,15 +156,17 @@ func (u *User) addSRSItems(chunk *contents.Chunk) {
 			"DELETE FROM 'srs_study' WHERE groupe = ? AND subgroup = ? AND meaning = ?",
 			item.Group, item.Subgroup, item.Meaning)
 		//Add item
+		isActive := 0
+		if u.SRSIsSubgroupActivated(item.Group, item.Subgroup) { isActive = 1 }
 		u.DBQuery(
 			`INSERT INTO 'srs_study' (
 				chunk_id, groupe, subgroup,
 				meaning, japanese, reading, comment,
-				box, next_review, noteToSelf)
-			VALUES (?, ?, ?, ?, ?, ?, ?, ?, date('now', '+1 day'), null)`,
+				box, next_review, subgroup_active)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, date('now', '+1 day'), ?)`,
 			chunk.FullId(), item.Group, item.Subgroup,
 			item.Meaning, item.Japanese, item.Reading, item.Comment,
-			0)
+			0, isActive)
 	}
 }
 
@@ -166,3 +174,209 @@ func (u *User) removeSRSItems(chunk *contents.Chunk) {
 	u.DBQuery("DELETE FROM 'srs_study' WHERE chunk_id = ?", chunk.FullId())
 }
 
+// =========================================
+
+func (u *User) SRSIsSubgroupActivated(group, subgroup string) bool {
+	return u.GetAttr("srs_" + group + "__" + subgroup) != "deactivated"
+}
+func (u *User) SRSActivateSubgroup(group, subgroup string) {
+	u.SetAttr("srs_" + group + "__" + subgroup, "")
+	u.DBQuery(`UPDATE 'srs_study' SET subgroup_active = 1
+		WHERE groupe = ? AND subgroup = ?`, group, subgroup)
+}
+func (u *User) SRSDeactivateSubgroup(group, subgroup string) {
+	u.SetAttr("srs_" + group + "__" + subgroup, "deactivated")
+	u.DBQuery(`UPDATE 'srs_study' SET subgroup_active = 0
+		WHERE groupe = ? AND subgroup = ?`, group, subgroup)
+}
+
+
+
+type SRSGroupStat struct {
+	Name, Path string
+	BoxCardCount map[int64]int64
+	SubGroups map[string]*SRSGroupStat
+	ToStudy, ToReview int64
+	Disabled bool
+}
+func (g SRSGroupStat) HasStudy() bool { return g.ToStudy != 0 }
+func (g SRSGroupStat) HasReview() bool { return g.ToReview != 0 }
+func (g SRSGroupStat) BarHTML() string {
+	if len(g.BoxCardCount) == 0 || g.Disabled {
+		return `<div class="bar"><div class="di" style="width: 200px"></div></div>`
+	}
+	barWidth := int64(200)
+	totalItems := int64(0)
+	ret := `<div class="bar">`
+	for _, k := range g.BoxCardCount {
+		totalItems += k
+	}
+	for box, count := range g.BoxCardCount {
+		style := "rknown"
+		if box < doneMinBox { style = fmt.Sprintf("r%v", box) }
+		ret += fmt.Sprintf(`<div class="%v" style="width: %vpx"></div>`, style, count * barWidth / totalItems)
+	}
+	ret += `</div>`
+	return ret
+}
+func (u *User) GetSRSStats() map[string]*SRSGroupStat {
+	subgroupBoxes := u.DBQueryFetchAll(
+		`SELECT COUNT(id) AS count, groupe, subgroup, box FROM 'srs_study'
+			GROUP BY groupe, subgroup, box`)
+	ret := make(map[string]*SRSGroupStat)
+	for _, sgb := range subgroupBoxes {
+		count := sgb[0].(int64)
+		group := sgb[1].(string)
+		subgroup := sgb[2].(string)
+		box := sgb[3].(int64)
+		if _, ok := ret[group]; !ok {
+			ret[group] = &SRSGroupStat{
+				Name: group, Path: group,
+				BoxCardCount: map[int64]int64{},
+				SubGroups: map[string]*SRSGroupStat{},
+				ToStudy: 0, ToReview: 0, Disabled: false,
+			}
+		}
+		if _, ok := ret[group].SubGroups[subgroup]; !ok {
+			ret[group].SubGroups[subgroup] = &SRSGroupStat{
+				Name: subgroup, Path: group + "/" + subgroup,
+				BoxCardCount: map[int64]int64{},
+				SubGroups: nil, ToStudy: 0, ToReview: 0,
+				Disabled: !u.SRSIsSubgroupActivated(group, subgroup),
+			}
+		}
+		if !ret[group].SubGroups[subgroup].Disabled {
+			if c, ok := ret[group].BoxCardCount[box]; ok {
+				ret[group].BoxCardCount[box] = c + count
+			} else {
+				ret[group].BoxCardCount[box] = count
+			}
+			if c, ok := ret[group].SubGroups[subgroup].BoxCardCount[box]; ok {
+				ret[group].SubGroups[subgroup].BoxCardCount[box] = c + count
+			} else {
+				ret[group].SubGroups[subgroup].BoxCardCount[box] = count
+			}
+		}
+	}
+	toStudyl := u.DBQueryFetchAll(
+		`SELECT COUNT(id) AS count, groupe, subgroup FROM 'srs_study'
+			WHERE next_review > DATE('now') AND box == 0 AND subgroup_active = 1
+			GROUP BY groupe, subgroup`)
+	for _, e := range toStudyl {
+		count := e[0].(int64)
+		group := e[1].(string)
+		subgroup := e[2].(string)
+		ret[group].ToStudy += count
+		ret[group].SubGroups[subgroup].ToStudy += count
+	}
+	toReviewl := u.DBQueryFetchAll(
+		`SELECT COUNT(id) AS count, groupe, subgroup FROM 'srs_study'
+			WHERE next_review <= DATE('now') AND subgroup_active = 1
+			GROUP BY groupe, subgroup`)
+	for _, e := range toReviewl {
+		count := e[0].(int64)
+		group := e[1].(string)
+		subgroup := e[2].(string)
+		ret[group].ToReview += count
+		ret[group].SubGroups[subgroup].ToReview += count
+	}
+	return ret
+}
+
+
+type SRSStudyItem struct {
+	Group, Subgroup string
+	Meaning, Japanese, Reading, Comment string
+	Id, Box int64
+	// TODO : add user comment
+}
+func (u *User) getSRSStudyQuery(sql string, v ...interface{}) []*SRSStudyItem {
+	st := u.DBQuerySt(sql, v...)
+	ret := make([]*SRSStudyItem, 0, 5)
+	for st.Step() == sqlite3.ROW {
+		r := st.Row()
+		item := &SRSStudyItem{
+			Group: r[0].(string), Subgroup: r[1].(string),
+			Meaning: r[2].(string), Japanese: r[3].(string),
+			Reading: r[4].(string), Comment: r[5].(string),
+			Id: r[6].(int64), Box: r[7].(int64),
+		}
+		ret = append(ret, item)
+	}
+	return ret
+}
+func (u *User) GetSRSReviewItems(group, subgroup string) []*SRSStudyItem {
+	if subgroup == "" {
+		return u.getSRSStudyQuery(
+			`SELECT groupe, subgroup, meaning, japanese, reading, comment, id, box
+			FROM 'srs_study' WHERE next_review <= DATE('now') AND groupe = ?`,
+			group)
+	}
+	return u.getSRSStudyQuery(
+		`SELECT groupe, subgroup, meaning, japanese, reading, comment, id, box
+		FROM 'srs_study' WHERE next_review <= DATE('now')
+		AND groupe = ? AND subgroup = ?`,
+		group, subgroup)
+}
+func (u *User) GetSRSTomorrowItems(group, subgroup string) []*SRSStudyItem {
+	if subgroup == "" {
+		return u.getSRSStudyQuery(
+			`SELECT groupe, subgroup, meaning, japanese, reading, comment, id, box
+			FROM 'srs_study' WHERE next_review > DATE('now') AND box = 0
+			AND groupe = ?`,
+			group)
+	}
+	return u.getSRSStudyQuery(
+		`SELECT groupe, subgroup, meaning, japanese, reading, comment, id, box
+		FROM 'srs_study' WHERE next_review > DATE('now') AND box = 0
+		AND groupe = ? AND subgroup = ?`,
+		group, subgroup)
+}
+
+func (u *User) GetSRSChunkItemsDrill(chunk *contents.Chunk) []*SRSStudyItem {
+	ret := make([]*SRSStudyItem, len(chunk.SRSItems))
+	for id, item := range chunk.SRSItems {
+		ret[id] = &SRSStudyItem{
+			Group: item.Group, Subgroup: item.Subgroup,
+			Japanese: item.Japanese, Meaning: item.Meaning,
+			Reading: item.Reading, Comment: item.Comment,
+			Box: 0, Id: 0,
+		}
+	}
+	return ret
+}
+func (u *User) GetSRSLessonItemsDrill(lesson *contents.Lesson) []*SRSStudyItem {
+	ret := make([]*SRSStudyItem, 0)
+	for _, ch := range lesson.Chunks {
+		ret = append(ret, u.GetSRSChunkItemsDrill(ch)...)
+	}
+	return ret
+}
+
+// ===============================
+
+var boxTimeIntervals = []int{1, 2, 4, 7, 11, 18, 30, 50, 80, 130, 210, 340, 550, 1000}
+
+func (u *User) UpdateSRSItemStatuses(success, fail []int64) {
+	boxMap := make(map[int64]int64)
+	st := u.DBQuerySt(`SELECT id, box FROM 'srs_study'
+		WHERE next_review <= DATE('now')`)
+	for st.Step() == sqlite3.ROW {
+		r := st.Row()
+		boxMap[r[0].(int64)] = r[1].(int64)
+	}
+	for _, id := range success {
+		if box, ok := boxMap[id]; ok {
+			u.DBQuery(fmt.Sprintf(
+				`UPDATE 'srs_study' SET box = ?, next_review = DATE('now', '+%v days')
+				WHERE id = ?`, boxTimeIntervals[box]), box + 1, id)
+		}
+	}
+	for _, id := range fail {
+		if _, ok := boxMap[id]; ok {
+			u.DBQuery(
+				`UPDATE 'srs_study' SET box = 0, next_review = DATE('now', '+1 days')
+				WHERE id = ?`, id)
+		}
+	}
+}

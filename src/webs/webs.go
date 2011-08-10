@@ -33,9 +33,9 @@ var tpl = map[string]*template.Template {
 	"chunk_read": nil,
 
 	"dic_results": nil,
-/*
+
 	"srs_home": nil,
-	"srs_review_drill": nil,*/
+	"srs_review_drill": nil,
 }
 
 var Info struct {
@@ -65,6 +65,15 @@ func Serve() {
 	http.Handle("/chunk_summary/", &sessionView{&tplView{"", "chunk_summary", chunkSummaryView}} )
 	http.Handle("/chunk_read/", &sessionView{&tplView{"", "chunk_read", chunkSummaryView}} )
 	http.Handle("/go_chunk/", &sessionView{&redirectView{"", goChunkView}} )
+
+	http.Handle("/srs_home", &sessionView{&tplView{"/srs_home", "srs_home", srsHomeView}} )
+	http.Handle("/srs_activate/", &sessionView{&redirectView{"", srsActivateView}} )
+	http.Handle("/srs_deactivate/", &sessionView{&redirectView{"", srsDeactivateView}} )
+	http.Handle("/srs_review/", &sessionView{&tplView{"", "srs_review_drill", srsReviewView}} )
+	http.Handle("/srs_tomorrow_drill/", &sessionView{&tplView{"", "srs_review_drill", srsTomorrowView}} )
+	http.Handle("/chunk_drill/", &sessionView{&tplView{"", "srs_review_drill", srsChunkDrillView}} )
+	http.Handle("/lesson_drill/", &sessionView{&tplView{"", "srs_review_drill", srsLessonDrillView}} )
+	http.Handle("/srs_save", &sessionView{&jsonView{"/srs_save", srsSaveView}})
 
 	http.Handle("/dic", &sessionView{&tplView{"/dic", "dic_results", dicSearchView}})
 

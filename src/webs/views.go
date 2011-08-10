@@ -5,6 +5,7 @@ import (
 	"strings"
 	"os"
 	"fmt"
+	"json"
 )
 
 import (
@@ -188,9 +189,9 @@ func studyHomeView(req *http.Request, s *session) interface{} {
 		return redirectResponse("/login?back=/study_home")
 	}
 
-	//TODO here : get SRS status
 	ret := giveTplData{
 		"Levels": contents.Levels,
+		"SRSData": s.User.GetSRSStats(),
 	}
 
 	lvl, ok := contents.LevelsMap[s.User.GetAttr("current_study_lvl")]
@@ -201,8 +202,10 @@ func studyHomeView(req *http.Request, s *session) interface{} {
 	ret["Level"] = lvl
 	ret["Lesson"] = less
 	ret["LessonsWS"] = s.User.GetLessonStatuses(lvl)
-	ret["ChunksWS"] = s.User.GetChunkStatuses(less)
+	chunksWS := s.User.GetChunkStatuses(less)
+	ret["ChunksWS"] = chunksWS
 	ret["LessonStudy"] = study.LessonWithStatus{less, s.User.GetLessonStudy(less)}
+
 	return ret
 }
 
@@ -248,23 +251,29 @@ func browseView(req *http.Request, s *session) interface {} {
 	return ret
 }
 
-func chunkSummaryView(req *http.Request, s *session) interface{} {
+func chunkViewParseUrl(req *http.Request) (chunk *contents.Chunk, err getDataError) {
 	path := strings.Split(req.URL.Path, "/", -1)
 
 	if len(path) < 5 || path[4] == "" {
-		return getDataError{http.StatusNotFound, nil}
+		return nil, getDataError{http.StatusNotFound, nil}
 	}
 
 	lvl, ok := contents.LevelsMap[path[2]]
-	if !ok { return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])} }
+	if !ok { return nil, getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])} }
 	less, ok := lvl.LessonsMap[path[3]]
-	if !ok { return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])} }
-	chunk, ok := less.ChunksMap[path[4]]
-	if !ok { return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchChunk"])} }
+	if !ok { return nil, getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])} }
+	chunk, ok = less.ChunksMap[path[4]]
+	if !ok { return nil, getDataError{http.StatusNotFound, os.NewError(messages["NoSuchChunk"])} }
+	return chunk, getDataError{http.StatusOK, nil}
+}
+
+func chunkSummaryView(req *http.Request, s *session) interface{} {
+	chunk, err := chunkViewParseUrl(req)
+	if err.Code != http.StatusOK { return err }
 
 	ret := giveTplData{
-		"Level": lvl,
-		"Lesson": less,
+		"Level": chunk.Level,
+		"Lesson": chunk.Lesson,
 		"Chunk": chunk,
 	}
 	if s.User != nil && s.User.GetChunkStudy(chunk) != study.CS_NOT_AVAILABLE {
@@ -309,23 +318,179 @@ func chunkSummaryView(req *http.Request, s *session) interface{} {
 
 func goChunkView(req *http.Request, s *session) string {
 	path := strings.Split(req.URL.Path, "/", -1)
-
-	if len(path) < 4 || path[5] == "" {
-		panic(getDataError{http.StatusNotFound, os.NewError("Malformed request")})
+	if len(path) < 6 {
+		panic(getDataError{http.StatusInternalServerError,
+			os.NewError("Malformed request.")})
 	}
-
-	lvl, ok := contents.LevelsMap[path[2]]
-	if !ok { panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])}) }
-	less, ok := lvl.LessonsMap[path[3]]
-	if !ok { panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])}) }
-	chunk, ok := less.ChunksMap[path[4]]
-	if !ok { panic(getDataError{http.StatusNotFound, os.NewError(messages["NoSuchChunk"])}) }
 
 	if s.User == nil {
 		panic(getDataError{http.StatusForbidden, os.NewError("Reserved to logged in users.")})
 	}
+
+	chunk, err := chunkViewParseUrl(req)
+	if err.Code != http.StatusOK { panic(err) }
+
 	if path[5] == "reading" { s.User.SetChunkStatus(chunk, study.CS_READING) }
 	if path[5] == "repeat" { s.User.SetChunkStatus(chunk, study.CS_REPEAT) }
 	if path[5] == "done" { s.User.SetChunkStatus(chunk, study.CS_DONE) }
 	return "/chunk_summary/" + chunk.FullId()
+}
+
+// ==============================================================
+
+func srsViewsSplitPath(req *http.Request, needSubgroup bool) (group, subgroup string) {
+	path := strings.Split(req.URL.Path, "/", -1)
+	if needSubgroup {
+		if len(path) < 4 || path[3] == "" {
+			panic(getDataError{http.StatusNotFound, os.NewError("Malformed request")})
+		}
+		return path[2], path[3]
+	}
+	if len(path) < 3 || path[2] == "" {
+		panic(getDataError{http.StatusNotFound, os.NewError("Malformed request")})
+	}
+	if len(path) >= 4 {
+		return path[2], path[3]
+	}
+	return path[2], ""
+}
+
+func srsHomeView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=/srs_home")
+	}
+
+	srsStats := s.User.GetSRSStats()
+	return giveTplData{
+		"SRSData": srsStats,
+	}
+}
+
+func srsActivateView(req *http.Request, s *session) string {
+	if s.User == nil {
+		return "/login?back=/srs_home"
+	}
+
+	group, subgroup := srsViewsSplitPath(req, true)
+	s.User.SRSActivateSubgroup(group, subgroup)
+	return "/srs_home"
+}
+
+func srsDeactivateView(req *http.Request, s *session) string {
+	if s.User == nil {
+		return "/login?back=/srs_home"
+	}
+
+	group, subgroup := srsViewsSplitPath(req, true)
+	s.User.SRSDeactivateSubgroup(group, subgroup)
+	return "/srs_home"
+}
+
+func srsReviewView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=/srs_home")
+	}
+
+	group, subgroup := srsViewsSplitPath(req, false)
+
+	items := s.User.GetSRSReviewItems(group, subgroup)
+	if len(items) == 0 {
+		return getDataError{http.StatusNotFound, os.NewError(messages["NothingToStudy"])}
+	}
+	data, e := json.Marshal(items)
+	if e != nil { return getDataError{http.StatusInternalServerError, e} }
+	ret := giveTplData{
+		"Data": string(data),
+		"Group": strings.ToLower(group),
+	}
+	if subgroup != "" { ret["SubGroup"] = strings.ToLower(subgroup) }
+	return ret
+}
+
+func srsTomorrowView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=/srs_home")
+	}
+
+	group, subgroup := srsViewsSplitPath(req, false)
+
+	items := s.User.GetSRSTomorrowItems(group, subgroup)
+	if len(items) == 0 {
+		return getDataError{http.StatusNotFound, os.NewError(messages["NothingToStudy"])}
+	}
+	data, e := json.Marshal(items)
+	if e != nil { return getDataError{http.StatusInternalServerError, e} }
+	ret := giveTplData{
+		"Data": string(data),
+		"IsDrill": true,
+		"Group": strings.ToLower(group),
+	}
+	if subgroup != "" { ret["SubGroup"] = strings.ToLower(subgroup) }
+	return ret
+}
+
+func srsChunkDrillView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=/srs_home")
+	}
+
+	chunk, err := chunkViewParseUrl(req)
+	if err.Code != http.StatusOK { return err }
+
+	items := s.User.GetSRSChunkItemsDrill(chunk)
+	if len(items) == 0 {
+		return getDataError{http.StatusNotFound, os.NewError(messages["NothingToStudy"])}
+	}
+	data, e := json.Marshal(items)
+	if e != nil { return getDataError{http.StatusInternalServerError, e} }
+	return giveTplData{
+		"Data": string(data),
+		"IsDrill": true,
+		"Chunk": chunk,
+	}
+}
+
+func srsLessonDrillView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return redirectResponse("/login?back=/srs_home")
+	}
+
+	path := strings.Split(req.URL.Path, "/", -1)
+
+	if len(path) < 4 || path[3] == "" {
+		return getDataError{http.StatusNotFound, nil}
+	}
+
+	lvl, ok := contents.LevelsMap[path[2]]
+	if !ok { return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLevel"])} }
+	less, ok := lvl.LessonsMap[path[3]]
+	if !ok { return getDataError{http.StatusNotFound, os.NewError(messages["NoSuchLesson"])} }
+
+	items := s.User.GetSRSLessonItemsDrill(less)
+	if len(items) == 0 {
+		return getDataError{http.StatusNotFound, os.NewError(messages["NothingToStudy"])}
+	}
+	data, e := json.Marshal(items)
+	if e != nil { return getDataError{http.StatusInternalServerError, e} }
+	return giveTplData{
+		"Data": string(data),
+		"IsDrill": true,
+		"Lesson": less,
+	}
+}
+
+func srsSaveView(req *http.Request, s *session) interface{} {
+	if s.User == nil {
+		return getDataError{http.StatusForbidden, os.NewError("Reserved to logged in users.")}
+	}
+
+	var success, fail []int64
+	e := json.Unmarshal([]byte(req.FormValue("success")), &success)
+	if e != nil { panic(e) }
+	e = json.Unmarshal([]byte(req.FormValue("fail")), &fail)
+	if e != nil { panic(e) }
+
+	s.User.UpdateSRSItemStatuses(success, fail)
+
+	return giveTplData{"Status": "Data saved", "Success": success, "Fail": fail}
 }
