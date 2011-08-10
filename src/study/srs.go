@@ -205,16 +205,18 @@ func (g SRSGroupStat) BarHTML() string {
 	if len(g.BoxCardCount) == 0 || g.Disabled {
 		return `<div class="bar"><div class="di" style="width: 200px"></div></div>`
 	}
-	barWidth := int64(200)
-	totalItems := int64(0)
+	var barWidth, totalItems, maxBox int64 = 200, 0, 0
 	ret := `<div class="bar">`
-	for _, k := range g.BoxCardCount {
+	for i, k := range g.BoxCardCount {
 		totalItems += k
+		if i > maxBox { maxBox = i }
 	}
-	for box, count := range g.BoxCardCount {
-		style := "rknown"
-		if box < doneMinBox { style = fmt.Sprintf("r%v", box) }
-		ret += fmt.Sprintf(`<div class="%v" style="width: %vpx"></div>`, style, count * barWidth / totalItems)
+	for i := int64(0); i <= maxBox; i++ {
+		if count, ok := g.BoxCardCount[i]; ok {
+			style := "rknown"
+			if i < doneMinBox { style = fmt.Sprintf("r%v", i) }
+			ret += fmt.Sprintf(`<div class="%v" style="width: %vpx"></div>`, style, count * barWidth / totalItems)
+		}
 	}
 	ret += `</div>`
 	return ret
