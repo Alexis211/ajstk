@@ -357,7 +357,7 @@ func (u *User) GetSRSLessonItemsDrill(lesson *contents.Lesson) []*SRSStudyItem {
 
 // ===============================
 
-var boxTimeIntervals = []int{1, 2, 4, 7, 11, 18, 30, 50, 80, 130, 210, 340, 550, 1000}
+var boxTimeIntervals = []int{1, 3, 6, 9, 15, 22, 30, 50, 80, 130, 210, 340, 550, 1000}
 
 func (u *User) UpdateSRSItemStatuses(success, fail []int64) {
 	boxMap := make(map[int64]int64)
