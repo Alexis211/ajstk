@@ -67,9 +67,11 @@ func getSRSItems(lines []string) []*SRSItem {
 			}
 		}
 		if busy != nil && len(busy) == 6 {
-			ret = append(ret, &SRSItem {
-				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, makeHtmlWithFuri(busy[3], busy[4], false, nil), srsItemNumber,
-			})
+			it := &SRSItem {
+				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, "", srsItemNumber,
+			}
+			it.HTMLWithFuri = makeHtmlWithFuri(busy[3], busy[4], false, it)
+			ret = append(ret, it)
 			srsItemNumber++
 			busy = nil
 			long = false
@@ -80,9 +82,11 @@ func getSRSItems(lines []string) []*SRSItem {
 			if len(busy) < 3 { long = true }
 		}
 		if busy != nil && len(busy) == 6 {
-			ret = append(ret, &SRSItem {
-				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, makeHtmlWithFuri(busy[3], busy[4], false, nil), srsItemNumber,
-			})
+			it := &SRSItem {
+				busy[0], busy[1], busy[2], busy[3], busy[4], busy[5], long, "", srsItemNumber,
+			}
+			it.HTMLWithFuri = makeHtmlWithFuri(busy[3], busy[4], false, it)
+			ret = append(ret, it)
 			srsItemNumber++
 			busy = nil
 			long = false
@@ -92,6 +96,11 @@ func getSRSItems(lines []string) []*SRSItem {
 }
 
 func makeHtmlWithFuri(japanese, reading string, templated bool, srsItem *SRSItem) string {
+	if reading == "" { return japanese }
+	if srsItem != nil && !srsItem.Long && !templated {
+		return fmt.Sprintf(`%v<span style="font-size: 0.8em">【%v】</span>`,
+		 japanese, reading)
+	}
 	jrunes := make([]int, 0, len(japanese))
 	rrunes := make([]int, 0, len(reading))
 	for _, r := range japanese {
@@ -515,9 +524,11 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 	}
 	for len(fields) < 6 { fields = append(fields, "") }
 	num := 0
+	var el *SRSItem = nil
 	for _, f := range t.chunk.SRSItems {
 		if f.Japanese == fields[3] {
 			num = f.Number
+			el = f
 			break
 		}
 	}
@@ -528,6 +539,6 @@ func (t *parsingText) parseSRS(lines []string, start int) int {
 	%v
 	<div class="comment">%v</div>
 </div>
-`, class, num, num, num, fields[0], fields[1], makeHtmlWithFuri(fields[3], fields[4], false, nil), fields[2], fields[5])
+`, class, num, num, num, fields[0], fields[1], makeHtmlWithFuri(fields[3], fields[4], false, el), fields[2], fields[5])
 	return pos
 }
